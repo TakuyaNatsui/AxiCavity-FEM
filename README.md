@@ -140,9 +140,6 @@ AxiCavity-FEM/
 |------|---------|
 | [USER_MANUAL.md](USER_MANUAL.md) | End-user operation guide (Japanese): GUI walkthrough, CLI reference, examples |
 | [PHYSICS_AND_CONVENTIONS.md](PHYSICS_AND_CONVENTIONS.md) | FEM formulation, time convention $e^{+j\omega t}$, periodic BC sign, engineering parameters |
-| [Helmholtz_2D_FEM.pdf](Helmholtz_2D_FEM.pdf) | Mathematical derivation of the axisymmetric Helmholtz FEM |
-| [CLAUDE.md](CLAUDE.md) | AI agent project guidelines used during development |
-
 ---
 
 ## Accuracy Verification

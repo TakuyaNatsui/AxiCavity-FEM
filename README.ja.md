@@ -140,9 +140,6 @@ AxiCavity-FEM/
 |------|------|
 | [USER_MANUAL.md](USER_MANUAL.md) | ユーザー向け操作マニュアル（日本語）。GUI チュートリアル、CLI リファレンス、実例 |
 | [PHYSICS_AND_CONVENTIONS.md](PHYSICS_AND_CONVENTIONS.md) | FEM 定式化、時間規約 $e^{+j\omega t}$、周期境界の符号、工学パラメータ定義 |
-| [Helmholtz_2D_FEM.pdf](Helmholtz_2D_FEM.pdf) | 軸対称ヘルムホルツ FEM の数学的導出 |
-| [CLAUDE.md](CLAUDE.md) | 開発に用いた AI エージェント向けプロジェクト指示 |
-
 ---
 
 ## 精度検証
