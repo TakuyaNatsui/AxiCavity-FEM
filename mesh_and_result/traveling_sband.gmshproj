@@ -1,0 +1,126 @@
+{
+    "points": [
+        [
+            0.0,
+            0.0
+        ],
+        [
+            35.0,
+            0.0
+        ],
+        [
+            35.0,
+            13.5
+        ],
+        [
+            32.5,
+            16.0
+        ],
+        [
+            32.5,
+            42.0
+        ],
+        [
+            2.5,
+            42.0
+        ],
+        [
+            2.5,
+            16.0
+        ],
+        [
+            0.0,
+            13.5
+        ]
+    ],
+    "segments": [
+        {
+            "type": "line",
+            "points": [
+                0,
+                1
+            ],
+            "physical_name": "None"
+        },
+        {
+            "type": "line",
+            "points": [
+                1,
+                2
+            ],
+            "physical_name": "M-short"
+        },
+        {
+            "type": "arc",
+            "points": [
+                2,
+                3
+            ],
+            "physical_name": "PEC",
+            "center": [
+                35.0,
+                16.0
+            ],
+            "radius": 2.5,
+            "theta1": 180.0,
+            "theta2": 270.0
+        },
+        {
+            "type": "line",
+            "points": [
+                3,
+                4
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "line",
+            "points": [
+                4,
+                5
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "line",
+            "points": [
+                5,
+                6
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "arc",
+            "points": [
+                6,
+                7
+            ],
+            "physical_name": "PEC",
+            "center": [
+                0.0,
+                16.0
+            ],
+            "radius": 2.5,
+            "theta1": -90.0,
+            "theta2": 0.0
+        },
+        {
+            "type": "line",
+            "points": [
+                7,
+                0
+            ],
+            "physical_name": "M-short"
+        }
+    ],
+    "loop_closed": true,
+    "settings": {
+        "unit": "mm",
+        "xmin": "-10",
+        "xmax": "40",
+        "ymin": "-10",
+        "ymax": "50",
+        "mesh_size": "2",
+        "mesh_order": 1
+    }
+}
