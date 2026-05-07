@@ -1,0 +1,14 @@
+# Core scientific stack
+numpy>=1.24
+scipy>=1.10
+h5py>=3.8
+
+# Visualization
+matplotlib>=3.7
+Pillow>=10.0
+
+# GUI (wxPython 4.2+ supports Python 3.10–3.13)
+wxPython>=4.2
+
+# Mesh generation (Gmsh Python API)
+gmsh>=4.11
