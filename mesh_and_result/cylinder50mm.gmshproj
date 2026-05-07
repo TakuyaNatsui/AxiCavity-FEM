@@ -1,0 +1,64 @@
+{
+    "points": [
+        [
+            0.0,
+            0.0
+        ],
+        [
+            100.0,
+            0.0
+        ],
+        [
+            100.0,
+            50.0
+        ],
+        [
+            0.0,
+            50.0
+        ]
+    ],
+    "segments": [
+        {
+            "type": "line",
+            "points": [
+                0,
+                1
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "line",
+            "points": [
+                1,
+                2
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "line",
+            "points": [
+                2,
+                3
+            ],
+            "physical_name": "PEC"
+        },
+        {
+            "type": "line",
+            "points": [
+                3,
+                0
+            ],
+            "physical_name": "PEC"
+        }
+    ],
+    "loop_closed": true,
+    "settings": {
+        "unit": "mm",
+        "xmin": "0",
+        "xmax": "100",
+        "ymin": "0",
+        "ymax": "100",
+        "mesh_size": "5",
+        "mesh_order": 1
+    }
+}
