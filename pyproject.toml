@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axicavity-fem"
+version = "2.3.0"
+description = "2-D axisymmetric finite-element solver for RF cavity resonant modes (TM0 and higher-order modes)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Takuya Natsui" },
+]
+keywords = [
+    "finite-element-method", "electromagnetics", "accelerator-physics",
+    "rf-cavity", "eigenmode", "gmsh",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "h5py>=3.8",
+    "gmsh>=4.11,<5",
+    "Pillow>=10",
+]
+
+[project.optional-dependencies]
+gui = ["wxPython>=4.2"]
+dev = ["pytest>=7", "pytest-cov"]
+accel = ["pypardiso>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/TakuyaNatsui/AxiCavity-FEM"
+Documentation = "https://github.com/TakuyaNatsui/AxiCavity-FEM/blob/main/USER_MANUAL.md"
+Issues = "https://github.com/TakuyaNatsui/AxiCavity-FEM/issues"
+
+[project.scripts]
+axicavity-fem = "axicavity_fem.cli.main:cli_main"
+
+[project.gui-scripts]
+axicavity-fem-gui = "axicavity_fem.gui.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

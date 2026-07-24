@@ -1,0 +1,468 @@
+{
+  "schema_version": "2.2",
+  "points": [
+    [
+      -250.0,
+      0.0
+    ],
+    [
+      250.0,
+      0.0
+    ],
+    [
+      250.0,
+      50.0
+    ],
+    [
+      120.0,
+      50.0
+    ],
+    [
+      110.0,
+      60.0
+    ],
+    [
+      115.77872159795976,
+      69.0653631285497
+    ],
+    [
+      144.22127840204024,
+      82.3096368714503
+    ],
+    [
+      150.0,
+      91.375
+    ],
+    [
+      20.0,
+      234.69
+    ],
+    [
+      -20.0,
+      234.69
+    ],
+    [
+      -150.0,
+      91.375
+    ],
+    [
+      -144.22127840204024,
+      82.3096368714503
+    ],
+    [
+      -115.77872159795976,
+      69.0653631285497
+    ],
+    [
+      -110.0,
+      60.0
+    ],
+    [
+      -120.0,
+      50.0
+    ],
+    [
+      -250.0,
+      50.0
+    ],
+    [
+      150.0,
+      104.69
+    ],
+    [
+      -150.0,
+      104.69
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 1,
+      "type": "line",
+      "point_indices": [
+        1,
+        2
+      ],
+      "bc_name": "M-short"
+    },
+    {
+      "id": 2,
+      "type": "line",
+      "point_indices": [
+        2,
+        3
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 3,
+      "type": "arc",
+      "point_indices": [
+        3,
+        4
+      ],
+      "bc_name": "PEC",
+      "center": [
+        120.0,
+        60.0
+      ],
+      "radius": 10.0,
+      "theta1": 180.0,
+      "theta2": 270.0,
+      "center_expr": [
+        "110.+r1",
+        "a+r1"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "arc",
+      "point_indices": [
+        4,
+        5
+      ],
+      "bc_name": "PEC",
+      "center": [
+        120.0,
+        60.0
+      ],
+      "radius": 10.0,
+      "theta1": 114.969,
+      "theta2": 180.0,
+      "center_expr": [
+        "110+r1",
+        "a+r1"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "line",
+      "point_indices": [
+        5,
+        6
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 6,
+      "type": "arc",
+      "point_indices": [
+        6,
+        7
+      ],
+      "bc_name": "PEC",
+      "center": [
+        140.0,
+        91.375
+      ],
+      "radius": 9.999999999999996,
+      "theta1": -65.03100000000002,
+      "theta2": 0.0,
+      "center_expr": [
+        "150-r1",
+        "a2"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "line",
+      "point_indices": [
+        8,
+        9
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 12,
+      "type": "arc",
+      "point_indices": [
+        10,
+        11
+      ],
+      "bc_name": "PEC",
+      "center": [
+        -140.0,
+        91.375
+      ],
+      "radius": 10.0,
+      "theta1": 180.0,
+      "theta2": 245.031,
+      "center_expr": [
+        "-(150-r1)",
+        "a2"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "line",
+      "point_indices": [
+        11,
+        12
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 14,
+      "type": "arc",
+      "point_indices": [
+        12,
+        13
+      ],
+      "bc_name": "PEC",
+      "center": [
+        -120.0,
+        60.0
+      ],
+      "radius": 9.999999999999996,
+      "theta1": 0.0,
+      "theta2": 65.03100000000002,
+      "center_expr": [
+        "-(110+r1)",
+        "a+r1"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "arc",
+      "point_indices": [
+        13,
+        14
+      ],
+      "bc_name": "PEC",
+      "center": [
+        -120.0,
+        60.0
+      ],
+      "radius": 10.0,
+      "theta1": -90.0,
+      "theta2": 0.0,
+      "center_expr": [
+        "-110.-r1",
+        "a+r1"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "line",
+      "point_indices": [
+        14,
+        15
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 17,
+      "type": "line",
+      "point_indices": [
+        15,
+        0
+      ],
+      "bc_name": "M-short"
+    },
+    {
+      "id": 19,
+      "type": "line",
+      "point_indices": [
+        7,
+        16
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 20,
+      "type": "arc",
+      "point_indices": [
+        16,
+        8
+      ],
+      "bc_name": "PEC",
+      "center": [
+        20.0,
+        104.69
+      ],
+      "radius": 130.0,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 21,
+      "type": "arc",
+      "point_indices": [
+        9,
+        17
+      ],
+      "bc_name": "PEC",
+      "center": [
+        -20.0,
+        104.69
+      ],
+      "radius": 130.0,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 22,
+      "type": "line",
+      "point_indices": [
+        17,
+        10
+      ],
+      "bc_name": "PEC"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        19,
+        20,
+        8,
+        21,
+        22,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 5.0,
+  "settings": {
+    "xmin": "-300",
+    "xmax": "300",
+    "ymin": "0",
+    "ymax": "250",
+    "mesh_order": 1
+  },
+  "variables": [
+    [
+      "b",
+      "234.69"
+    ],
+    [
+      "a",
+      "50"
+    ],
+    [
+      "r1",
+      "10"
+    ],
+    [
+      "a2",
+      "91.375"
+    ],
+    [
+      "phi",
+      "pi*24.969/180"
+    ],
+    [
+      "a1",
+      "a+r1+r1*cos(phi)"
+    ]
+  ],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      "a"
+    ],
+    [
+      "110+r1",
+      "a"
+    ],
+    [
+      null,
+      "a+r1"
+    ],
+    [
+      "110+r1-r1*sin(pi*24.969/180)",
+      "a1"
+    ],
+    [
+      "150-r1+r1*sin(phi)",
+      "a2-r1*cos(phi)"
+    ],
+    [
+      null,
+      "a2"
+    ],
+    [
+      "150-130",
+      "b"
+    ],
+    [
+      "-(150-130)",
+      "b"
+    ],
+    [
+      null,
+      "a2"
+    ],
+    [
+      "-(150-r1+r1*sin(phi))",
+      "a2-r1*cos(phi)"
+    ],
+    [
+      "-(110+r1-r1*sin(pi*24.969/180))",
+      "a+r1+r1*cos(pi*24.969/180)"
+    ],
+    [
+      null,
+      "a+r1"
+    ],
+    [
+      "-(110+r1)",
+      "a"
+    ],
+    [
+      null,
+      "a"
+    ],
+    [
+      null,
+      "b-130"
+    ],
+    [
+      null,
+      "b-130"
+    ]
+  ],
+  "mesh_size_expr": null
+}

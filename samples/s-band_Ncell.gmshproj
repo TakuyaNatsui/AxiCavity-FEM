@@ -1,0 +1,230 @@
+{
+  "schema_version": "2.2",
+  "points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      34.98978267973856,
+      0.0
+    ],
+    [
+      34.98978267973856,
+      22.0
+    ],
+    [
+      32.48978267973856,
+      24.5
+    ],
+    [
+      32.48978267973856,
+      45.37
+    ],
+    [
+      2.5,
+      45.37
+    ],
+    [
+      2.5,
+      24.5
+    ],
+    [
+      0.0,
+      22.0
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 1,
+      "type": "line",
+      "point_indices": [
+        1,
+        2
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 2,
+      "type": "arc",
+      "point_indices": [
+        2,
+        3
+      ],
+      "bc_name": "PEC",
+      "center": [
+        34.98978267973856,
+        24.5
+      ],
+      "radius": 2.5,
+      "theta1": 180.0,
+      "theta2": 270.0,
+      "center_expr": [
+        "L",
+        "a+t/2"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "line",
+      "point_indices": [
+        3,
+        4
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 4,
+      "type": "line",
+      "point_indices": [
+        4,
+        5
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 5,
+      "type": "line",
+      "point_indices": [
+        5,
+        6
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 6,
+      "type": "arc",
+      "point_indices": [
+        6,
+        7
+      ],
+      "bc_name": "PEC",
+      "center": [
+        0.0,
+        24.5
+      ],
+      "radius": 2.5,
+      "theta1": -90.0,
+      "theta2": 0.0,
+      "center_expr": [
+        null,
+        "a+t/2"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "line",
+      "point_indices": [
+        7,
+        0
+      ],
+      "bc_name": "PEC"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 2.5,
+  "settings": {
+    "xmin": "-5",
+    "xmax": "40",
+    "ymin": "0",
+    "ymax": "70",
+    "mesh_order": 1
+  },
+  "variables": [
+    [
+      "f",
+      "2856e6"
+    ],
+    [
+      "c",
+      "299792458"
+    ],
+    [
+      "L",
+      "(c/f/3)*1e3"
+    ],
+    [
+      "a",
+      "22"
+    ],
+    [
+      "b",
+      "45.37"
+    ],
+    [
+      "t",
+      "5"
+    ]
+  ],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      "L",
+      null
+    ],
+    [
+      "L",
+      "a"
+    ],
+    [
+      "L-t/2",
+      "a+t/2"
+    ],
+    [
+      "L-t/2",
+      "b"
+    ],
+    [
+      "t/2",
+      "b"
+    ],
+    [
+      "t/2",
+      "a+t/2"
+    ],
+    [
+      null,
+      "a"
+    ]
+  ],
+  "mesh_size_expr": null
+}

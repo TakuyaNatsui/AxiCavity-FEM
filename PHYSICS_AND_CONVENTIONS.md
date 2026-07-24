@@ -274,7 +274,42 @@ E-short（対称境界）・M-short（PMC）・軸（$r=0$）は含めない。
 
 ### Q 値
 
-$$Q = \frac{\omega\, U}{P_\text{loss}}$$
+$$Q = \frac{\omega\, U}{P_\text{loss} + P_\text{diel}}$$
+
+ver2.3 以降、`Q` は**全損失込みの合計 Q** である（無損失誘電体
+$\tan\delta = 0$ のときは従来どおり $Q = \omega U / P_\text{loss}$ とビット同一）。
+壁損失のみの Q は `Q_wall`、誘電体損失のみの Q は `Q_diel` として別途出力される。
+
+### 誘電体損失 $Q_\text{diel}$（ver2.3、摂動法）
+
+領域ごとの誘電正接 $\tan\delta$（複素誘電率
+$\varepsilon = \varepsilon_0\varepsilon_r(1 - j\tan\delta)$ の損失）を、
+**実固有値解を変えない摂動法**で扱う。時間平均の誘電体損失は
+
+$$P_\text{diel} = \frac{\omega\varepsilon_0}{2}
+\sum_e \varepsilon_r^{(e)} \tan\delta^{(e)} \int_e |\tilde{E}|^2\, 2\pi r\, dA$$
+
+実装では規約係数の取り違えを避けるため、**同一の求積機構で評価した
+2 つの積分の比**として計算する：
+
+$$Q_\text{diel} = \frac{\sum_e \varepsilon_r^{(e)} \int_e |\tilde{E}|^2\, r\, dA}
+{\sum_e \varepsilon_r^{(e)} \tan\delta^{(e)} \int_e |\tilde{E}|^2\, r\, dA},
+\qquad P_\text{diel} = \frac{\omega U}{Q_\text{diel}}, \qquad
+\frac{1}{Q} = \frac{1}{Q_\text{wall}} + \frac{1}{Q_\text{diel}}$$
+
+- **一様充填では $Q_\text{diel} = 1/\tan\delta$ が恒等的に成立**する
+  （分子 = 分母 / $\tan\delta$。物理的には共振時のエネルギー等分配
+  $U_E = U_H = U/2$ と上式 $P_\text{diel}$ の帰結 $P_\text{diel} = \omega \tan\delta\, U$）。
+- TM0 は $H_\phi$ から再構成した $E$（`field_recon` と同一の式）を
+  7 点求積で直接積分（`fem_tm0/post_process._dielectric_weight_integrals`）。
+  $E$ は $H$ の微分で 1 次精度が落ちるため、**部分充填**の損失配分は
+  周波数より収束が 1 次遅い（2 次要素を推奨）。HOM は E 場ネイティブで
+  `_stored_energy` と同一機構（重み $\varepsilon_r \tan\delta$）を流用する。
+- 摂動法はモード形状の変化を無視する近似であり、$\tan\delta \ll 1$
+  （目安 $\lesssim 0.05$）で有効。固有値問題は実数のままで、
+  eigsh / PARDISO 経路・計算時間に影響しない。
+- $R_\text{shunt}$・$\alpha$（減衰定数）は従来どおり**壁損失ベース**のまま。
+- $\mu_r$ と磁性損失 $\tan\delta_m$ は未対応（スコープ外）。
 
 ### 実効電圧 $V_\text{eff}$
 

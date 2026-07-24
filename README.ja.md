@@ -1,184 +1,225 @@
 # AxiCavity-FEM
 
-**加速器空洞共振器 TM0／HOM 解析のための 2 次元軸対称電磁場 FEM**
+**軸対称 RF 空洞の共振モードを解く 2 次元有限要素法ソルバ。
+形状作成・メッシュ生成・後処理・レポート作成まで一貫して行えます。**
 
-[English](README.md) | [日本語](README.ja.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-373%20passing-brightgreen.svg)](tests/)
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey)
-![GUI](https://img.shields.io/badge/GUI-wxPython-orange)
+English README: [README.md](README.md)
 
-AxiCavity-FEM は、軸対称 RF 空洞の共振モードを有限要素法で解くツールです。基本 TM0 モードと任意の方位角次数の高次モード（HOM）を、定在波・進行波の両方について計算できます。Webb 階層基底による 2 次要素を採用し、高い周波数精度を達成しています。wxPython による GUI で Gmsh ベースのメッシュ生成・固有モード解析・ポストプロセス・HTML / GIF レポートを一貫して実行でき、バッチ用途に等価な CLI も用意しています。
+![5 セル加速管の TM0 モード](docs/images/tm0_accelerating_structure.png)
 
----
+AxiCavity-FEM は回転体形状の (z, r) 半平面上でヘルムホルツ方程式を解き、共振周波数・
+電磁場分布に加えて、設計で実際に使う工学パラメータ（Q 値、R/Q、実効加速電圧、蓄積
+エネルギー、壁損失、電力流、群速度、減衰定数）を出力します。
 
-## スクリーンショット
-
-### GUI ワークフロー
-
-<table>
-  <tr>
-    <td width="33%"><img src="docs/images/mesh_edit_UI_screenshot.png" alt="メッシュ編集タブ" /></td>
-    <td width="33%"><img src="docs/images/FEM_Analysis_screenshot.png" alt="FEM Analysis タブ" /></td>
-    <td width="33%"><img src="docs/images/Result_Viewer_screenshot.png" alt="Result Viewer" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>1. 形状作成・メッシュ生成タブ</sub></td>
-    <td align="center"><sub>2. FEM Analysis（ソルバー + ポストプロセス）</sub></td>
-    <td align="center"><sub>3. 対話的な Result Viewer</sub></td>
-  </tr>
-</table>
-
-### 解析結果の例
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/mesh_overview.png" alt="メッシュ概要" /></td>
-    <td width="50%"><img src="docs/images/tm0_traveling_field.png" alt="TM0 進行波の電磁場" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>メッシュ概要（S バンド進行波構造）</sub></td>
-    <td align="center"><sub>TM0 進行波の E／H 場（θ=120°）</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/hom_n1_field.png" alt="HOM n=1 モード" /></td>
-    <td width="50%"><img src="docs/images/axial_ez.png" alt="軸上 Ez 分布" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>HOM n=1 双極モード（E／H 場）</sub></td>
-    <td align="center"><sub>軸上 E<sub>z</sub> 分布（実部／虚部）</sub></td>
-  </tr>
-</table>
+加速に使う**軸対称 TM0 モード**と、ビーム不安定性の原因になる**高次方位角モード
+（HOM, n ≥ 1）**の両方に対応し、定在波でも、セル間位相差をもつ進行波でも計算できます。
 
 ---
 
-## 主な機能
+## 特徴
 
-### ソルバー
-- **TM0 モード** — スカラー $H_\phi$ 定式化、定在波・進行波両対応
-- **HOM（n ≥ 1）** — Nédélec エッジ DOF + 節点 $E_\phi$ DOF、任意の方位角次数、複数 `n` を一括計算
-- **Webb 階層基底 2 次要素** — O(h⁴) 収束、球形空洞ベンチマークで周波数誤差 < 0.01 %
-- **周期境界の位相スキャン** — 進行波構造の分散曲線を `0:180:20` のような構文で自動掃引
+**物理**
 
-### ワークフロー
-- **wxPython GUI** に Gmsh メッシュ生成を統合（形状エディタ → メッシュ → 解析 → ビューア が 1 ウィンドウ）
-- **等価な CLI** によりスクリプト・バッチ実行が可能。GUI から実行された全コマンドは `command.log` に記録される
-- **インタラクティブ Result Viewer** — カラーマップ、電気力線、ベクトル図、ダブルクリックでその点の電磁場値を表示、進行波の時間発展 GIF を保存
-- **HTML レポート** — Q 値、R/Q、シャントインピーダンス、群速度、減衰定数などの工学パラメータと、各モードのフィールド図を自動生成
-- **電磁場マップ出力** — Area / Line / Axis のサンプリング、HDF5 + TXT 出力、複素振幅または瞬時値、ビーム計算用の電力スケーリング対応
+- 軸対称 **TM0** モード（H<sub>φ</sub> 定式化・節点要素）— 定在波／進行波
+- 任意の方位角次数 n ≥ 1 の**高次モード**（E 場定式化・辺要素）
+- 任意の位相差を与える**周期境界条件**と、位相スキャン（`0:180:20`）による分散曲線
+- **誘電体**: 領域ごとの比誘電率と、**誘電正接 tanδ** による誘電体損失
+  （`1/Q = 1/Q_wall + 1/Q_diel`）
+- 1 次・2 次三角形要素
+
+**得られる量**
+
+| 量 | |
+|---|---|
+| f, Q, Q_wall, Q_diel | 共振周波数と各種 Q 値 |
+| R/Q, V_eff | シャントインピーダンスと実効加速電圧（指定した β の走行時間係数込み） |
+| U, P_loss, P_diel | 蓄積エネルギー・壁損失・誘電体損失 |
+| P_flow, v_g, α | ポート通過電力・群速度・減衰定数（進行波） |
+
+**ワークフロー**
+
+- **形状エディタ GUI** — 点・直線・円弧で輪郭を作成、線分ごとに境界条件を設定、
+  多領域・穴あき形状、領域ごとの材料、ワンクリックでメッシュ生成
+- **パラメトリック形状** — 変数（`a = 100`, `c = a + b`）を定義し座標欄に式を入力。
+  変数を変えると形状が追従して再計算されます
+- **Superfish `.af` の入出力** — 既存形状の取り込みと書き出し
+- **出力**: HDF5（スキーマ文書化済み）、テキストサマリ、場マップ PNG、
+  直線上・矩形領域・軸上の場データ（HDF5／テキスト）、自己完結 HTML レポート、
+  進行波モードの GIF アニメーション
+- **Result Viewer** — モードを切り替えて場を確認し、グラフ上をダブルクリックして
+  その点の場の値を読み取れます
+
+<!--
+GUI スクリーンショットを撮影したらここに追加する:
+
+| 形状エディタ | 結果ビューア |
+|---|---|
+| ![Multi-Region Editor](docs/images/gui_editor.png) | ![Result Viewer](docs/images/gui_result_viewer.png) |
+-->
+
+| 高次ダイポールモード (n = 1) | メッシュ・境界条件・誘電体界面 |
+|---|---|
+| ![HOM n=1](docs/images/hom_dipole_n1.png) | ![Mesh overview](docs/images/mesh_overview.png) |
 
 ---
 
 ## インストール
 
+Python 3.10 以降が必要です。
+
 ```bash
 git clone https://github.com/TakuyaNatsui/AxiCavity-FEM.git
 cd AxiCavity-FEM
-pip install -r requirements.txt
+pip install -e .          # ソルバ + コマンドライン
+pip install -e ".[gui]"   # GUI も使う場合（wxPython）
 ```
 
-**動作環境:** Python 3.10 以上（wxPython 4.2+ で 3.10–3.13 をサポート）。
+clone せずに直接入れることもできます。
 
-**注意点:**
-- `wxPython` と `gmsh` を含むすべての依存関係が PyPI 経由で Windows / Linux にインストール可能です。
-- Linux 環境では wxPython のビルド回避のため Conda 環境を推奨します。
-- Gmsh は Python バインディングが PyPI から直接配布されているため、別途 Gmsh を入れる必要はありません。
+```bash
+pip install "git+https://github.com/TakuyaNatsui/AxiCavity-FEM.git"
+```
+
+Gmsh は pip の依存として入るので、別途インストールする必要はありません
+（Linux では OpenGL ランタイム `libglu1-mesa` が必要になる場合があります）。
+
+任意: `pip install pypardiso` を入れると疎行列分解が Intel MKL PARDISO に切り替わります。
+**計算結果は変わりません**。自由度 2 万程度を超える大きなメッシュで数倍速くなります。
 
 ---
 
 ## クイックスタート
 
+### コマンドライン
+
+サンプル形状を [`samples/`](samples/) に同梱しています。次の例は半径 50 mm・
+長さ 100 mm の円筒空洞（ピルボックス）です。
+
+```bash
+axicavity-fem solve  --type tm0 -m samples/cylinder100mm.msh --elem-order 2 --num-modes 6 -o pillbox.h5
+axicavity-fem post   --type tm0 -i pillbox.h5 --cond 5.8e7
+axicavity-fem report --type tm0 -i pillbox.h5 -o pillbox_report
+```
+
+`solve` でモードを求め、`post` で工学パラメータを追加し（この例は銅壁 σ = 5.8×10⁷ S/m）、
+`report` で場マップ入りの HTML を書き出します。各ステップは HDF5 の隣にテキストサマリも
+出力します。最低次モードは 2.294851 GHz となり、解析解 `j₀₁c/2πa` と小数 6 桁まで一致します。
+
+最低次からではなく特定の帯域を探索したいときは次のようにします。
+
+```bash
+axicavity-fem solve --type tm0 -m samples/s-band_1cell.msh --num-modes 4 --target-freq 2.856 -o sband.h5
+```
+
+高次モードは方位角次数を並べて指定し、進行波はセル間位相差を与えます。
+
+```bash
+axicavity-fem solve --type hom -m samples/s-band_1cell.msh --az-order 0 1 2 -o hom.h5
+axicavity-fem solve --type tm0 -m samples/s-band_1cell.msh -p 120 -o traveling.h5
+```
+
+全オプションは `axicavity-fem <command> --help`、または
+[ユーザーマニュアル](USER_MANUAL.md) を参照してください。
+
 ### GUI
 
 ```bash
-python app.py
+axicavity-fem-gui
 ```
 
-GUI 内部のワークフローは 3 ステップ:
-
-1. **Shape & Mesh タブ** — 空洞断面を点・円弧で作図し、メッシュサイズを設定して `.msh` を出力。
-2. **FEM Analysis タブ** — TM0 / HOM を選び、要素次数（**2 次推奨**）、モード数、必要なら位相スキャンを設定 → **Run Solver** → **Run Post-Process** → **Create HTML Report**。
-3. **Result Viewer** — モードを対話的に切り替えて確認。フィールドマップや GIF アニメーションを書き出し可能。
-
-### CLI（TM0 定在波の最小例）
-
-```bash
-# 解析
-python FEM_code/run_analysis.py \
-    -m mesh_and_result/cylinder50mm_2nd.msh \
-    --elem-order 2 --num-modes 5 -o result.h5
-
-# ポストプロセス + レポート生成
-python FEM_code/post_process_unified.py -i result.h5 -c 5.8e7 -b 1.0
-```
-
-GUI 操作の詳細・全 CLI オプション（HOM ソルバー、進行波位相スキャン、電磁場マップ出力など）は [USER_MANUAL.md](USER_MANUAL.md) を参照してください。
+1. **Multi-Region Editor** — `samples/` のサンプルを開く（または新しく輪郭を描く）、
+   線分ごとに境界条件を設定して `.msh` を書き出す。
+2. **FEM Analysis** — メッシュのパスは自動で入ります。**Run Solver** →
+   **Run Post-Process** → **Create Report** または **View Results** の順に押します。
 
 ---
 
-## プロジェクト構成
+## 精度
 
-```
-AxiCavity-FEM/
-├── app.py                      # GUI エントリポイント
-├── MyFrame.py                  # メイン GUI ロジック
-├── ResultViewer.py             # 対話的な結果ビューア
-├── plot_common.py              # 共通可視化ユーティリティ
-├── FEM_code/                   # TM0 ソルバー・ポストプロセス・フィールド出力
-├── FEM_HOM_code/               # HOM（n ≥ 1）ソルバー・ポストプロセス・フィールド出力
-├── mesh_and_result/            # サンプルメッシュとレポート出力
-├── docs/images/                # README 用スクリーンショット
-└── USER_MANUAL.md              # ユーザー向けマニュアル（日本語）
-```
+- **球形空洞と球ベッセル解析解の比較**: 最も細かいメッシュで相対誤差 ~1e-8、
+  収束次数 ≈ 4（TM0・HOM とも）
+  （[`examples/accuracy_verification/`](examples/accuracy_verification/)）
+- **ピルボックス TM010**: `j₀₁c/2πa` と小数 6 桁まで一致
+- **誘電体損失**: 一様充填で `Q_diel = 1/tanδ` が機械精度で成立し、周波数は
+  解析解 TM010 と相対誤差 1.4e-7
+  （[`examples/dielectric_loss/`](examples/dielectric_loss/)）
+- **数値積分**: TM0 は既定で 7 点（5 次精度）求積を使います。収束検証
+  （[`examples/quadrature_convergence/`](examples/quadrature_convergence/)）により、
+  従来の 4 点則は 2 次要素の質量項を過小積分して偽モードを生じるのに対し、
+  7 点則ではどのメッシュでも偽モードが出ないことを確認しています。
+- 返される固有対はすべて**残差チェック**済みで、収束していないモードが偽の共振周波数
+  として結果に混入することはありません。
+
+設計用途では 2 次要素（`--elem-order 2`）を使ってください。同じメッシュサイズで
+1 次要素より 1〜2 桁高精度です。
 
 ---
 
 ## ドキュメント
 
-| ファイル | 内容 |
-|------|------|
-| [USER_MANUAL.md](USER_MANUAL.md) | ユーザー向け操作マニュアル（日本語）。GUI チュートリアル、CLI リファレンス、実例 |
-| [PHYSICS_AND_CONVENTIONS.md](PHYSICS_AND_CONVENTIONS.md) | FEM 定式化、時間規約 $e^{+j\omega t}$、周期境界の符号、工学パラメータ定義 |
+| | |
+|---|---|
+| [USER_MANUAL.md](USER_MANUAL.md) | GUI の操作手順と CLI の全オプション |
+| [PHYSICS_AND_CONVENTIONS.md](PHYSICS_AND_CONVENTIONS.md) | 時間規約・規格化・電力流・周期境界の符号 |
+| [docs/BC_NAMING.md](docs/BC_NAMING.md) | PEC / E-short / M-short / None の物理的意味 |
+| [docs/HDF5_SCHEMA.md](docs/HDF5_SCHEMA.md) | 出力ファイルの構造 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) | 開発者向け |
+| [examples/](examples/) | 精度検証・パラメータスイープの実行可能なスクリプト |
+| [CHANGELOG.md](CHANGELOG.md) | 変更履歴 |
+
 ---
 
-## 精度検証
+## version 1 との関係
 
-球形共振器（R = 100 mm）の解析的固有周波数と比較して検証しています。2 次要素では 1 次要素に対して誤差が 1〜2 桁減少し、理論収束次数 O(h⁴) を達成します。
+version 2 は version 1 の完全な書き直しです。pip でインストールできるパッケージ化、
+統一コマンドライン、新しい形状エディタ、多領域・誘電体対応、自動テスト、
+文書化されたファイル形式を備えています。物理は同じで、数値も version 1 と一致します
+（開発時にモードごとに照合済み）。
 
-| メッシュサイズ | 要素次数 | TM₀₁₁ 誤差 | TM₁₁₁ 誤差 | TE₁₁₁ 誤差 | TM₂₁₁ 誤差 |
-|---|---|---|---|---|---|
-| 10 mm（粗） | 1 次 | 〜 1 % | 〜 0.1 % | 〜 0.1 % | 〜 0.1 % |
-| 10 mm（粗） | **2 次** | **0.12 %** | **0.0004 %** | **0.0014 %** | **0.0005 %** |
-| 2.5 mm（細） | 2 次 | < 0.01 % | < 0.001 % | < 0.001 % | < 0.001 % |
-
-この精度を達成する定式化の詳細は `PHYSICS_AND_CONVENTIONS.md` を参照してください。
+version 1 は同じリポジトリの tag
+[`v1.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v1.0) と branch
+[`v1`](https://github.com/TakuyaNatsui/AxiCavity-FEM/tree/v1) から引き続き利用できます。
 
 ---
 
 ## 引用
 
-学術用途で AxiCavity-FEM をご利用の場合は、以下をご引用ください:
+本コードが論文等に寄与した場合は、次の情報で引用してください。
 
 ```bibtex
-@software{axicavity_fem,
-  title  = {AxiCavity-FEM: 2D Axisymmetric Electromagnetic FEM for Accelerator Cavity TM0 / HOM Analysis},
-  author = {Takuya Natsui},
-  year   = {2026},
-  url    = {https://github.com/TakuyaNatsui/AxiCavity-FEM}
+@software{AxiCavityFEM,
+  author  = {Natsui, Takuya},
+  title   = {{AxiCavity-FEM}: a 2-D axisymmetric finite-element solver for RF cavity resonant modes},
+  version = {2.3.0},
+  year    = {2026},
+  url     = {https://github.com/TakuyaNatsui/AxiCavity-FEM}
 }
 ```
 
----
-
 ## ライセンス
 
-MIT License で配布しています。詳細は [LICENSE](LICENSE) を参照してください。
+MIT — [LICENSE](LICENSE) を参照してください。
 
-なお、本プロジェクトは実行時に wxPython（LGPL）および Gmsh（GPL with linking exception）の Python バインディングに依存します。AxiCavity-FEM 自体のソースコードは MIT ライセンスです。
+実行時依存ライブラリはそれぞれのライセンスに従います（**Gmsh**: GPL（リンク例外付き）、
+**wxPython**: wxWindows Library Licence（LGPL 相当））。pip で導入する分には本コードの
+ライセンスは変わりませんが、これらを同梱して再配布する場合はそれぞれの条件が適用されます。
 
----
+## 開発への参加
 
-## 謝辞
+バグ報告・プルリクエストは
+[GitHub Issues](https://github.com/TakuyaNatsui/AxiCavity-FEM/issues) へお願いします。
+プルリクエストの前にテストを実行してください。
 
-本プロジェクトは **Claude（Anthropic）** との反復的な協働開発によって構築されました。
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+GUI のレイアウトは [wxGlade](https://wxglade.sourceforge.net/) が
+`main_frame_ui.wxg` / `result_viewer_ui.wxg` から生成しています。`*_ui.py` を直接
+編集せず、`.wxg` を編集して再生成してください。動作は手書きのサブクラス
+（`main_frame.py`, `result_viewer.py`）側にあります。

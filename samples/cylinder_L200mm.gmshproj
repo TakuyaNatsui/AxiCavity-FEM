@@ -1,0 +1,111 @@
+{
+  "schema_version": "2.2",
+  "points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      200.0,
+      0.0
+    ],
+    [
+      200.0,
+      50.0
+    ],
+    [
+      0.0,
+      50.0
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 1,
+      "type": "line",
+      "point_indices": [
+        1,
+        2
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 2,
+      "type": "line",
+      "point_indices": [
+        2,
+        3
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 3,
+      "type": "line",
+      "point_indices": [
+        3,
+        0
+      ],
+      "bc_name": "PEC"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 5.0,
+  "settings": {
+    "xmin": "0",
+    "xmax": "200",
+    "ymin": "0",
+    "ymax": "100",
+    "mesh_order": 1
+  },
+  "variables": [],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ],
+  "mesh_size_expr": null
+}

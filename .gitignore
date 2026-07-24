@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# --- pytest / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- AxiCavity-FEM が生成するもの ---
+# solve / post の出力（HDF5 と、その隣に出るテキストサマリ）
+*.h5
+/samples/*.txt
+# report コマンドの出力ディレクトリ
+*_report/
+# GUI が実行したコマンドの記録
+command.log
+# wxGlade のバックアップ
+*.wxg.bak
+
+# --- editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

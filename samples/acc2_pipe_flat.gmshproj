@@ -1,0 +1,1697 @@
+{
+  "schema_version": "2.2",
+  "points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      15.0
+    ],
+    [
+      50.0,
+      15.0
+    ],
+    [
+      52.0,
+      17.0
+    ],
+    [
+      52.0,
+      39.9688
+    ],
+    [
+      55.0,
+      42.9688
+    ],
+    [
+      61.2454,
+      42.9688
+    ],
+    [
+      67.49080000000001,
+      42.9688
+    ],
+    [
+      70.49080000000001,
+      39.9688
+    ],
+    [
+      70.49080000000001,
+      17.0
+    ],
+    [
+      72.49080000000001,
+      15.0
+    ],
+    [
+      74.49080000000001,
+      17.0
+    ],
+    [
+      74.49080000000001,
+      43.278600000000004
+    ],
+    [
+      76.99080000000001,
+      45.778600000000004
+    ],
+    [
+      79.49080000000001,
+      43.278600000000004
+    ],
+    [
+      79.49080000000001,
+      17.0
+    ],
+    [
+      81.4908,
+      15.0
+    ],
+    [
+      83.4908,
+      17.0
+    ],
+    [
+      83.49080000000001,
+      33.10506
+    ],
+    [
+      95.36044000000001,
+      44.9747
+    ],
+    [
+      107.23008000000002,
+      33.10506000000001
+    ],
+    [
+      107.23010000000001,
+      17.0
+    ],
+    [
+      109.2301,
+      15.0
+    ],
+    [
+      111.2301,
+      17.0
+    ],
+    [
+      111.23010000000001,
+      43.254000000000005
+    ],
+    [
+      113.73010000000001,
+      45.754000000000005
+    ],
+    [
+      116.23010000000001,
+      43.254000000000005
+    ],
+    [
+      116.23010000000001,
+      17.0
+    ],
+    [
+      118.2301,
+      15.0
+    ],
+    [
+      120.2301,
+      17.0
+    ],
+    [
+      120.2301,
+      30.64123
+    ],
+    [
+      134.72390000000001,
+      45.1351
+    ],
+    [
+      149.21777,
+      30.64123
+    ],
+    [
+      149.2178,
+      17.0
+    ],
+    [
+      151.21779999999998,
+      15.0
+    ],
+    [
+      153.21779999999998,
+      17.0
+    ],
+    [
+      153.2178,
+      43.238
+    ],
+    [
+      155.7178,
+      45.738
+    ],
+    [
+      158.2178,
+      43.238
+    ],
+    [
+      158.2178,
+      17.0
+    ],
+    [
+      160.2178,
+      15.0
+    ],
+    [
+      162.2178,
+      17.0
+    ],
+    [
+      162.21779999999998,
+      28.2283
+    ],
+    [
+      179.33589999999998,
+      45.3464
+    ],
+    [
+      196.45399999999998,
+      28.228300000000004
+    ],
+    [
+      196.45399999999998,
+      17.0
+    ],
+    [
+      198.454,
+      15.0
+    ],
+    [
+      200.454,
+      17.0
+    ],
+    [
+      200.454,
+      43.2264
+    ],
+    [
+      202.954,
+      45.7264
+    ],
+    [
+      205.454,
+      43.2264
+    ],
+    [
+      205.454,
+      17.0
+    ],
+    [
+      207.454,
+      15.0
+    ],
+    [
+      209.454,
+      17.0
+    ],
+    [
+      209.454,
+      27.02928
+    ],
+    [
+      227.8842,
+      45.4595
+    ],
+    [
+      246.31441999999998,
+      27.029279999999996
+    ],
+    [
+      246.3145,
+      17.0
+    ],
+    [
+      248.3145,
+      15.0
+    ],
+    [
+      250.3145,
+      17.0
+    ],
+    [
+      250.3145,
+      43.2216
+    ],
+    [
+      252.8145,
+      45.7216
+    ],
+    [
+      255.3145,
+      43.2216
+    ],
+    [
+      255.3145,
+      17.0
+    ],
+    [
+      257.3145,
+      15.0
+    ],
+    [
+      259.3145,
+      17.0
+    ],
+    [
+      259.3145,
+      38.7281
+    ],
+    [
+      262.3145,
+      41.7281
+    ],
+    [
+      277.7447,
+      41.7281
+    ],
+    [
+      293.1749,
+      41.7281
+    ],
+    [
+      296.1749,
+      38.7281
+    ],
+    [
+      296.1749,
+      17.0
+    ],
+    [
+      298.1749,
+      15.0
+    ],
+    [
+      348.1749,
+      15.0
+    ],
+    [
+      348.1749,
+      0.0
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 1,
+      "type": "line",
+      "point_indices": [
+        1,
+        2
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 2,
+      "type": "arc",
+      "point_indices": [
+        2,
+        3
+      ],
+      "bc_name": "PEC",
+      "center": [
+        50.0,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 3,
+      "type": "line",
+      "point_indices": [
+        3,
+        4
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 4,
+      "type": "arc",
+      "point_indices": [
+        4,
+        5
+      ],
+      "bc_name": "PEC",
+      "center": [
+        55.0,
+        39.9688
+      ],
+      "radius": 3.0,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 5,
+      "type": "line",
+      "point_indices": [
+        5,
+        6
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 6,
+      "type": "line",
+      "point_indices": [
+        6,
+        7
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 7,
+      "type": "arc",
+      "point_indices": [
+        7,
+        8
+      ],
+      "bc_name": "PEC",
+      "center": [
+        67.49080000000001,
+        39.9688
+      ],
+      "radius": 3.0,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 8,
+      "type": "line",
+      "point_indices": [
+        8,
+        9
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 9,
+      "type": "arc",
+      "point_indices": [
+        9,
+        10
+      ],
+      "bc_name": "PEC",
+      "center": [
+        72.49080000000001,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 10,
+      "type": "arc",
+      "point_indices": [
+        10,
+        11
+      ],
+      "bc_name": "PEC",
+      "center": [
+        72.49080000000001,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 11,
+      "type": "line",
+      "point_indices": [
+        11,
+        12
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 12,
+      "type": "arc",
+      "point_indices": [
+        12,
+        13
+      ],
+      "bc_name": "PEC",
+      "center": [
+        76.99080000000001,
+        43.278600000000004
+      ],
+      "radius": 2.5,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 13,
+      "type": "arc",
+      "point_indices": [
+        13,
+        14
+      ],
+      "bc_name": "PEC",
+      "center": [
+        76.99080000000001,
+        43.278600000000004
+      ],
+      "radius": 2.5,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 14,
+      "type": "line",
+      "point_indices": [
+        14,
+        15
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 15,
+      "type": "arc",
+      "point_indices": [
+        15,
+        16
+      ],
+      "bc_name": "PEC",
+      "center": [
+        81.4908,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 16,
+      "type": "arc",
+      "point_indices": [
+        16,
+        17
+      ],
+      "bc_name": "PEC",
+      "center": [
+        81.4908,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 17,
+      "type": "line",
+      "point_indices": [
+        17,
+        18
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 18,
+      "type": "arc",
+      "point_indices": [
+        18,
+        19
+      ],
+      "bc_name": "PEC",
+      "center": [
+        95.36044000000001,
+        33.10506
+      ],
+      "radius": 11.869639999999999,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 19,
+      "type": "arc",
+      "point_indices": [
+        19,
+        20
+      ],
+      "bc_name": "PEC",
+      "center": [
+        95.36044000000001,
+        33.10506
+      ],
+      "radius": 11.869639999999999,
+      "theta1": 3.429852e-14,
+      "theta2": 90.0
+    },
+    {
+      "id": 20,
+      "type": "line",
+      "point_indices": [
+        20,
+        21
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 21,
+      "type": "arc",
+      "point_indices": [
+        21,
+        22
+      ],
+      "bc_name": "PEC",
+      "center": [
+        109.2301,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 22,
+      "type": "arc",
+      "point_indices": [
+        22,
+        23
+      ],
+      "bc_name": "PEC",
+      "center": [
+        109.2301,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 23,
+      "type": "line",
+      "point_indices": [
+        23,
+        24
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 24,
+      "type": "arc",
+      "point_indices": [
+        24,
+        25
+      ],
+      "bc_name": "PEC",
+      "center": [
+        113.73010000000001,
+        43.254000000000005
+      ],
+      "radius": 2.5,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 25,
+      "type": "arc",
+      "point_indices": [
+        25,
+        26
+      ],
+      "bc_name": "PEC",
+      "center": [
+        113.73010000000001,
+        43.254000000000005
+      ],
+      "radius": 2.5,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 26,
+      "type": "line",
+      "point_indices": [
+        26,
+        27
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 27,
+      "type": "arc",
+      "point_indices": [
+        27,
+        28
+      ],
+      "bc_name": "PEC",
+      "center": [
+        118.2301,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 28,
+      "type": "arc",
+      "point_indices": [
+        28,
+        29
+      ],
+      "bc_name": "PEC",
+      "center": [
+        118.2301,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 29,
+      "type": "line",
+      "point_indices": [
+        29,
+        30
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 30,
+      "type": "arc",
+      "point_indices": [
+        30,
+        31
+      ],
+      "bc_name": "PEC",
+      "center": [
+        134.72390000000001,
+        30.64123
+      ],
+      "radius": 14.49387,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 31,
+      "type": "arc",
+      "point_indices": [
+        31,
+        32
+      ],
+      "bc_name": "PEC",
+      "center": [
+        134.72390000000001,
+        30.64123
+      ],
+      "radius": 14.49387,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 32,
+      "type": "line",
+      "point_indices": [
+        32,
+        33
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 33,
+      "type": "arc",
+      "point_indices": [
+        33,
+        34
+      ],
+      "bc_name": "PEC",
+      "center": [
+        151.21779999999998,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 34,
+      "type": "arc",
+      "point_indices": [
+        34,
+        35
+      ],
+      "bc_name": "PEC",
+      "center": [
+        151.21779999999998,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 35,
+      "type": "line",
+      "point_indices": [
+        35,
+        36
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 36,
+      "type": "arc",
+      "point_indices": [
+        36,
+        37
+      ],
+      "bc_name": "PEC",
+      "center": [
+        155.7178,
+        43.238
+      ],
+      "radius": 2.5,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 37,
+      "type": "arc",
+      "point_indices": [
+        37,
+        38
+      ],
+      "bc_name": "PEC",
+      "center": [
+        155.7178,
+        43.238
+      ],
+      "radius": 2.5,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 38,
+      "type": "line",
+      "point_indices": [
+        38,
+        39
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 39,
+      "type": "arc",
+      "point_indices": [
+        39,
+        40
+      ],
+      "bc_name": "PEC",
+      "center": [
+        160.2178,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 40,
+      "type": "arc",
+      "point_indices": [
+        40,
+        41
+      ],
+      "bc_name": "PEC",
+      "center": [
+        160.2178,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 41,
+      "type": "line",
+      "point_indices": [
+        41,
+        42
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 42,
+      "type": "arc",
+      "point_indices": [
+        42,
+        43
+      ],
+      "bc_name": "PEC",
+      "center": [
+        179.33589999999998,
+        28.2283
+      ],
+      "radius": 17.118100000000002,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 43,
+      "type": "arc",
+      "point_indices": [
+        43,
+        44
+      ],
+      "bc_name": "PEC",
+      "center": [
+        179.33589999999998,
+        28.2283
+      ],
+      "radius": 17.118100000000002,
+      "theta1": 1.189124e-14,
+      "theta2": 90.0
+    },
+    {
+      "id": 44,
+      "type": "line",
+      "point_indices": [
+        44,
+        45
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 45,
+      "type": "arc",
+      "point_indices": [
+        45,
+        46
+      ],
+      "bc_name": "PEC",
+      "center": [
+        198.454,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 46,
+      "type": "arc",
+      "point_indices": [
+        46,
+        47
+      ],
+      "bc_name": "PEC",
+      "center": [
+        198.454,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 47,
+      "type": "line",
+      "point_indices": [
+        47,
+        48
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 48,
+      "type": "arc",
+      "point_indices": [
+        48,
+        49
+      ],
+      "bc_name": "PEC",
+      "center": [
+        202.954,
+        43.2264
+      ],
+      "radius": 2.5,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 49,
+      "type": "arc",
+      "point_indices": [
+        49,
+        50
+      ],
+      "bc_name": "PEC",
+      "center": [
+        202.954,
+        43.2264
+      ],
+      "radius": 2.5,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 50,
+      "type": "line",
+      "point_indices": [
+        50,
+        51
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 51,
+      "type": "arc",
+      "point_indices": [
+        51,
+        52
+      ],
+      "bc_name": "PEC",
+      "center": [
+        207.454,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 52,
+      "type": "arc",
+      "point_indices": [
+        52,
+        53
+      ],
+      "bc_name": "PEC",
+      "center": [
+        207.454,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 53,
+      "type": "line",
+      "point_indices": [
+        53,
+        54
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 54,
+      "type": "arc",
+      "point_indices": [
+        54,
+        55
+      ],
+      "bc_name": "PEC",
+      "center": [
+        227.8842,
+        27.02928
+      ],
+      "radius": 18.43022,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 55,
+      "type": "arc",
+      "point_indices": [
+        55,
+        56
+      ],
+      "bc_name": "PEC",
+      "center": [
+        227.8842,
+        27.02928
+      ],
+      "radius": 18.43022,
+      "theta1": -1.104466e-14,
+      "theta2": 90.0
+    },
+    {
+      "id": 56,
+      "type": "line",
+      "point_indices": [
+        56,
+        57
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 57,
+      "type": "arc",
+      "point_indices": [
+        57,
+        58
+      ],
+      "bc_name": "PEC",
+      "center": [
+        248.3145,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 58,
+      "type": "arc",
+      "point_indices": [
+        58,
+        59
+      ],
+      "bc_name": "PEC",
+      "center": [
+        248.3145,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 59,
+      "type": "line",
+      "point_indices": [
+        59,
+        60
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 60,
+      "type": "arc",
+      "point_indices": [
+        60,
+        61
+      ],
+      "bc_name": "PEC",
+      "center": [
+        252.8145,
+        43.2216
+      ],
+      "radius": 2.5,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 61,
+      "type": "arc",
+      "point_indices": [
+        61,
+        62
+      ],
+      "bc_name": "PEC",
+      "center": [
+        252.8145,
+        43.2216
+      ],
+      "radius": 2.5,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 62,
+      "type": "line",
+      "point_indices": [
+        62,
+        63
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 63,
+      "type": "arc",
+      "point_indices": [
+        63,
+        64
+      ],
+      "bc_name": "PEC",
+      "center": [
+        257.3145,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 64,
+      "type": "arc",
+      "point_indices": [
+        64,
+        65
+      ],
+      "bc_name": "PEC",
+      "center": [
+        257.3145,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": -90.0,
+      "theta2": 0.0
+    },
+    {
+      "id": 65,
+      "type": "line",
+      "point_indices": [
+        65,
+        66
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 66,
+      "type": "arc",
+      "point_indices": [
+        66,
+        67
+      ],
+      "bc_name": "PEC",
+      "center": [
+        262.3145,
+        38.7281
+      ],
+      "radius": 3.0,
+      "theta1": 90.0,
+      "theta2": 180.0
+    },
+    {
+      "id": 67,
+      "type": "line",
+      "point_indices": [
+        67,
+        68
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 68,
+      "type": "line",
+      "point_indices": [
+        68,
+        69
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 69,
+      "type": "arc",
+      "point_indices": [
+        69,
+        70
+      ],
+      "bc_name": "PEC",
+      "center": [
+        293.1749,
+        38.7281
+      ],
+      "radius": 3.0,
+      "theta1": 0.0,
+      "theta2": 90.0
+    },
+    {
+      "id": 70,
+      "type": "line",
+      "point_indices": [
+        70,
+        71
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 71,
+      "type": "arc",
+      "point_indices": [
+        71,
+        72
+      ],
+      "bc_name": "PEC",
+      "center": [
+        298.1749,
+        17.0
+      ],
+      "radius": 2.0,
+      "theta1": 180.0,
+      "theta2": 270.0
+    },
+    {
+      "id": 72,
+      "type": "line",
+      "point_indices": [
+        72,
+        73
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 73,
+      "type": "line",
+      "point_indices": [
+        73,
+        74
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 74,
+      "type": "line",
+      "point_indices": [
+        74,
+        0
+      ],
+      "bc_name": "None"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 2.5,
+  "settings": {
+    "xmin": "0",
+    "xmax": "350",
+    "ymin": "0",
+    "ymax": "100",
+    "mesh_order": 1
+  },
+  "variables": [],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ],
+  "mesh_size_expr": null
+}

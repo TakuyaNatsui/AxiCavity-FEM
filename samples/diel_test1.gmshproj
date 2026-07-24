@@ -1,0 +1,617 @@
+{
+  "schema_version": "2.3",
+  "points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      52.5,
+      0.0
+    ],
+    [
+      52.5,
+      41.2
+    ],
+    [
+      0.0,
+      41.2
+    ],
+    [
+      52.5,
+      27.2
+    ],
+    [
+      52.5,
+      23.0
+    ],
+    [
+      41.575,
+      41.2
+    ],
+    [
+      37.175,
+      41.2
+    ],
+    [
+      15.325,
+      41.2
+    ],
+    [
+      10.925,
+      41.2
+    ],
+    [
+      0.0,
+      27.2
+    ],
+    [
+      0.0,
+      23.0
+    ],
+    [
+      10.925,
+      27.2
+    ],
+    [
+      15.325,
+      27.2
+    ],
+    [
+      10.925,
+      23.0
+    ],
+    [
+      15.325,
+      23.0
+    ],
+    [
+      10.925,
+      5.1
+    ],
+    [
+      15.325,
+      5.1
+    ],
+    [
+      37.175,
+      27.2
+    ],
+    [
+      41.575,
+      27.2
+    ],
+    [
+      37.175,
+      23.0
+    ],
+    [
+      41.575,
+      23.0
+    ],
+    [
+      37.175,
+      5.1
+    ],
+    [
+      41.575,
+      5.1
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 5,
+      "type": "line",
+      "point_indices": [
+        4,
+        2
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 6,
+      "type": "line",
+      "point_indices": [
+        1,
+        5
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 7,
+      "type": "line",
+      "point_indices": [
+        5,
+        4
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 8,
+      "type": "line",
+      "point_indices": [
+        2,
+        6
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 9,
+      "type": "line",
+      "point_indices": [
+        6,
+        7
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 10,
+      "type": "line",
+      "point_indices": [
+        7,
+        8
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 11,
+      "type": "line",
+      "point_indices": [
+        8,
+        9
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 12,
+      "type": "line",
+      "point_indices": [
+        9,
+        3
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 13,
+      "type": "line",
+      "point_indices": [
+        3,
+        10
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 14,
+      "type": "line",
+      "point_indices": [
+        10,
+        11
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 15,
+      "type": "line",
+      "point_indices": [
+        11,
+        0
+      ],
+      "bc_name": "E-short"
+    },
+    {
+      "id": 16,
+      "type": "line",
+      "point_indices": [
+        10,
+        12
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 17,
+      "type": "line",
+      "point_indices": [
+        12,
+        9
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 18,
+      "type": "line",
+      "point_indices": [
+        8,
+        13
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 19,
+      "type": "line",
+      "point_indices": [
+        13,
+        18
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 20,
+      "type": "line",
+      "point_indices": [
+        18,
+        7
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 21,
+      "type": "line",
+      "point_indices": [
+        6,
+        19
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 22,
+      "type": "line",
+      "point_indices": [
+        19,
+        4
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 23,
+      "type": "line",
+      "point_indices": [
+        5,
+        21
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 24,
+      "type": "line",
+      "point_indices": [
+        21,
+        23
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 25,
+      "type": "line",
+      "point_indices": [
+        23,
+        22
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 26,
+      "type": "line",
+      "point_indices": [
+        22,
+        20
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 27,
+      "type": "line",
+      "point_indices": [
+        20,
+        15
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 28,
+      "type": "line",
+      "point_indices": [
+        15,
+        17
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 29,
+      "type": "line",
+      "point_indices": [
+        17,
+        16
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 30,
+      "type": "line",
+      "point_indices": [
+        16,
+        14
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 31,
+      "type": "line",
+      "point_indices": [
+        14,
+        11
+      ],
+      "bc_name": "None"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        13,
+        16,
+        17,
+        12
+      ],
+      "orientation": "CCW"
+    },
+    {
+      "id": 1,
+      "segment_ids": [
+        10,
+        18,
+        19,
+        20
+      ],
+      "orientation": "CCW"
+    },
+    {
+      "id": 2,
+      "segment_ids": [
+        8,
+        21,
+        22,
+        5
+      ],
+      "orientation": "CCW"
+    },
+    {
+      "id": 3,
+      "segment_ids": [
+        15,
+        0,
+        6,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "orientation": "CCW"
+    },
+    {
+      "id": 4,
+      "segment_ids": [
+        14,
+        31,
+        30,
+        29,
+        28,
+        27,
+        26,
+        25,
+        24,
+        23,
+        7,
+        22,
+        21,
+        9,
+        20,
+        19,
+        18,
+        11,
+        17,
+        16
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    },
+    {
+      "id": 1,
+      "name": "Vacuum1",
+      "outer_loop_id": 1,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum1",
+      "eps_r": 1.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    },
+    {
+      "id": 2,
+      "name": "Vacuum2",
+      "outer_loop_id": 2,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum2",
+      "eps_r": 1.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    },
+    {
+      "id": 3,
+      "name": "Vacuum3",
+      "outer_loop_id": 3,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum3",
+      "eps_r": 1.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    },
+    {
+      "id": 4,
+      "name": "E",
+      "outer_loop_id": 4,
+      "hole_loop_ids": [],
+      "material_tag": "e",
+      "eps_r": 9.64,
+      "mu_r": 1.0,
+      "tan_delta": 5.7e-06
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 2.0,
+  "settings": {
+    "xmin": "-5",
+    "xmax": "70",
+    "ymin": "0",
+    "ymax": "50",
+    "mesh_order": 1
+  },
+  "variables": [
+    [
+      "L",
+      "52.5/2"
+    ],
+    [
+      "a1",
+      "23"
+    ],
+    [
+      "a2",
+      "5.1"
+    ],
+    [
+      "b",
+      "41.2"
+    ],
+    [
+      "tr",
+      "4.2"
+    ],
+    [
+      "tz",
+      "4.4"
+    ]
+  ],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      "2*L",
+      null
+    ],
+    [
+      "2*L",
+      "b"
+    ],
+    [
+      null,
+      "b"
+    ],
+    [
+      "2*L",
+      "a1+tr"
+    ],
+    [
+      "2*L",
+      "a1"
+    ],
+    [
+      "1.5*L+tz/2",
+      "b"
+    ],
+    [
+      "1.5*L-tz/2",
+      "b"
+    ],
+    [
+      "L/2+tz/2",
+      "b"
+    ],
+    [
+      "L/2-tz/2",
+      "b"
+    ],
+    [
+      null,
+      "a1+tr"
+    ],
+    [
+      null,
+      "a1"
+    ],
+    [
+      "L/2-tz/2",
+      "a1+tr"
+    ],
+    [
+      "L/2+tz/2",
+      "a1+tr"
+    ],
+    [
+      "L/2-tz/2",
+      "a1"
+    ],
+    [
+      "L/2+tz/2",
+      "a1"
+    ],
+    [
+      "L/2-tz/2",
+      "a2"
+    ],
+    [
+      "L/2+tz/2",
+      "a2"
+    ],
+    [
+      "1.5*L-tz/2",
+      "a1+tr"
+    ],
+    [
+      "1.5*L+tz/2",
+      "a1+tr"
+    ],
+    [
+      "1.5*L-tz/2",
+      "a1"
+    ],
+    [
+      "1.5*L+tz/2",
+      "a1"
+    ],
+    [
+      "1.5*L-tz/2",
+      "a2"
+    ],
+    [
+      "1.5*L+tz/2",
+      "a2"
+    ]
+  ],
+  "mesh_size_expr": null
+}
