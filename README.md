@@ -9,6 +9,8 @@ with a built-in geometry editor, mesh generation, post-processing and reporting.
 
 日本語版 README は [README.ja.md](README.ja.md) にあります。
 
+YouTube explanatory video: https://youtu.be/U27KQ3pV1wE
+
 ![TM0 mode of a 5-cell accelerating structure](docs/images/tm0_accelerating_structure.png)
 
 AxiCavity-FEM solves the Helmholtz equation on the (z, r) half-plane of a body of
