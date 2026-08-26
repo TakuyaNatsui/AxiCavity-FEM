@@ -9,6 +9,8 @@
 
 English README: [README.md](README.md)
 
+YouTube解説動画: https://youtu.be/U27KQ3pV1wE
+
 ![5 セル加速管の TM0 モード](docs/images/tm0_accelerating_structure.png)
 
 AxiCavity-FEM は回転体形状の (z, r) 半平面上でヘルムホルツ方程式を解き、共振周波数・
