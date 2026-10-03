@@ -1,0 +1,11 @@
+# 改行はリポジトリの中では LF にそろえる（チェックアウト時は各自の git の設定に従う）
+* text=auto
+# アイコンは tests/test_ui_icon_set.py が tools/make_icons.py の出力とバイト単位で比べるので常に LF
+*.svg text eol=lf
+*.png binary
+*.ico binary
+*.gif binary
+*.pdf binary
+*.h5 binary
+*.npz binary
+*.msh -text

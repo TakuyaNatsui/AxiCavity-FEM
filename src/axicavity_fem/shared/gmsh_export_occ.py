@@ -1,4 +1,4 @@
-﻿"""ver2.1: 多領域 MultiRegionGeometry を Gmsh (.msh) に出力する。
+"""ver2.1: 多領域 MultiRegionGeometry を Gmsh (.msh) に出力する。
 
 OpenCASCADE (`gmsh.model.occ`) + `fragment()` で共有境界の節点一致を保証し、
 領域ごとに 2D Physical Surface、BC ごとに 1D Physical Curve を付与する。

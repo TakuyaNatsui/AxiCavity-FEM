@@ -1,4 +1,4 @@
-﻿"""solve サブコマンド: FEM 固有値解析を実行し v2 HDF5 へ保存する."""
+"""solve サブコマンド: FEM 固有値解析を実行し v2 HDF5 へ保存する."""
 
 from __future__ import annotations
 

@@ -18,12 +18,16 @@ htmlcov/
 # solve / post の出力（HDF5 と、その隣に出るテキストサマリ）
 *.h5
 /samples/*.txt
+# サンプルから作ったメッシュ・材料定義・バッチ実行の出力（samples/ には入力ファイルだけを置く）
+/samples/*.msh
+/samples/*.materials.json
+/samples/*_batch/
 # report コマンドの出力ディレクトリ
 *_report/
-# GUI が実行したコマンドの記録
+# プロジェクトのデータフォルダ（メッシュ・結果の履歴）
+*.axiproj.data/
+# GUI / CLI が実行したコマンドの記録
 command.log
-# wxGlade のバックアップ
-*.wxg.bak
 
 # --- editors / OS ---
 .vscode/

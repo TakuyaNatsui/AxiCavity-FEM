@@ -126,9 +126,8 @@ def test_load_mesh_legacy_no_2d_physical_group(tmp_path):
     """ver2 形式 (2D Physical Group なし) のメッシュは
     element_region_ids = None になる。
     """
-    # 単一領域メッシュを Multi-Region で生成しても 2D Physical Group が 1 つは
-    # 付くため element_region_ids は None にならない。そこで Physical Group を
-    # 持たない最小メッシュをここで自作して確認する。
+    # 単一領域メッシュを v2.1 以降で生成しても 2D Physical Group が 1 つは付くため、None にはならない。
+    # なので Physical Group 無しの最小メッシュをここで自作する。
     import gmsh
     out = tmp_path / "nophys.msh"
     gmsh.initialize()

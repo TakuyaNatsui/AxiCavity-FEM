@@ -1,4 +1,4 @@
-﻿"""段階7c 検証: reports.plot_* の場マップ PNG 生成（スモーク）.
+"""段階7c 検証: reports.plot_* の場マップ PNG 生成（スモーク）.
 
 画像の見た目は自動検証できないため、PNG が生成され非空であることを確認する。
 """
@@ -16,10 +16,13 @@ pytest.importorskip("matplotlib")
 
 from axicavity_fem.shared.hdf5_io import read_results, write_results  # noqa: E402
 
-_CYL_2ND = Path(__file__).resolve().parents[1] / "samples" / "cylinder100mm.msh"
+_CYL_2ND: Path       # samples/cylinder100mm.gmshproj（r = 50 mm, L = 100 mm）の 2 次メッシュ
 
-pytestmark = pytest.mark.skipif(
-    not _CYL_2ND.exists(), reason="cylinder100mm.msh なし")
+
+@pytest.fixture(autouse=True)
+def _meshes(sample_mesh):
+    global _CYL_2ND
+    _CYL_2ND = sample_mesh("cylinder100mm", 2)
 
 
 def _write_tm0_h5(path):

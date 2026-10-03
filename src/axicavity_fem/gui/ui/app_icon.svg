@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <radialGradient id="field" cx="128" cy="196" r="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde047"/>
+      <stop offset="0.45" stop-color="#fb923c"/>
+      <stop offset="0.8" stop-color="#dc2626"/>
+      <stop offset="1" stop-color="#7f1d1d"/>
+    </radialGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <path d="M28 196V160H70V86Q70 58 98 58H158Q186 58 186 86V160H228V196Z" fill="url(#field)"
+        stroke="#ffffff" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M84 196C84 120 102 86 128 86S172 120 172 196" fill="none" stroke="#ffffff" stroke-opacity="0.55"
+        stroke-width="5"/>
+  <path d="M106 196C106 146 115 118 128 118S150 146 150 196" fill="none" stroke="#ffffff" stroke-opacity="0.55"
+        stroke-width="5"/>
+  <path d="M18 208H238" stroke="#e2e8f0" stroke-width="8" stroke-dasharray="18 10" stroke-linecap="round"/>
+</svg>

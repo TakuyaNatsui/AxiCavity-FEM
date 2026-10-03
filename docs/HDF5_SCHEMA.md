@@ -1,4 +1,4 @@
-﻿# HDF5 スキーマ仕様 (schema_version = 2.2)
+# HDF5 スキーマ仕様 (schema_version = 2.2)
 
 ver2 で TM0 と HOM の出力ファイル構造を統一する。ver2.1 で誘電体（領域別 ε_r）の
 保存を追加、ver2.3（schema_version=2.2）で誘電正接 tanδ の保存を追加した
@@ -86,8 +86,8 @@ post コマンド実行後に追加。
 | `group_velocity` | 群速度 [m/s]（進行波のみ） |
 | `attenuation` | 減衰定数 [1/m]（進行波のみ） |
 
-## version 1 のファイルからの読み込み
+## v1 (ver1) ファイルからの読み込み
 
-`shared/hdf5_io.py` の `load_v1_legacy(path)` で version 1 の出力 (TM0 フラット型 / HOM ネスト型) を現行の in-memory 構造に変換する。`schema_version` 属性の有無で自動判別。
+`shared/hdf5_io.py` の `load_v1_legacy(path)` で ver1 (TM0 フラット型 / HOM ネスト型) を ver2 in-memory 構造に変換する。`schema_version` 属性の有無で自動判別。
 
 書き出しは常に v2 のみ。

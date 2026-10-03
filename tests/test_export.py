@@ -1,4 +1,4 @@
-﻿"""段階7b 検証: reports.export_fields の場データ出力.
+"""段階7b 検証: reports.export_fields の場データ出力.
 
 export がサンプリングした場の値が、同じ固有ベクトルから直接再構成した値
 （field_recon）と一致することを確認する。eigsh の不安定性を避けるため、
@@ -19,10 +19,13 @@ import h5py  # noqa: E402
 from axicavity_fem.reports.export_fields import export_fields  # noqa: E402
 from axicavity_fem.shared.hdf5_io import read_results, write_results  # noqa: E402
 
-_CYL_2ND = Path(__file__).resolve().parents[1] / "samples" / "cylinder100mm.msh"
+_CYL_2ND: Path       # samples/cylinder100mm.gmshproj（r = 50 mm, L = 100 mm）の 2 次メッシュ
 
-pytestmark = pytest.mark.skipif(
-    not _CYL_2ND.exists(), reason="cylinder100mm.msh なし")
+
+@pytest.fixture(autouse=True)
+def _meshes(sample_mesh):
+    global _CYL_2ND
+    _CYL_2ND = sample_mesh("cylinder100mm", 2)
 
 
 def _write_tm0_h5(path):

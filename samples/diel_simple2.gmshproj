@@ -1,0 +1,175 @@
+{
+  "schema_version": "2.3",
+  "points": [
+    [
+      10.983356400156143,
+      8.733099116363256
+    ],
+    [
+      40.224990240959585,
+      8.307250079846703
+    ],
+    [
+      42.21228574470351,
+      40.95567621278258
+    ],
+    [
+      12.260903509705809,
+      42.091273643493395
+    ],
+    [
+      58.6784484900103,
+      41.66542460697683
+    ],
+    [
+      58.11064977465489,
+      8.307250079846703
+    ]
+  ],
+  "segments": [
+    {
+      "id": 0,
+      "type": "line",
+      "point_indices": [
+        0,
+        1
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 1,
+      "type": "line",
+      "point_indices": [
+        1,
+        2
+      ],
+      "bc_name": "None"
+    },
+    {
+      "id": 2,
+      "type": "line",
+      "point_indices": [
+        2,
+        3
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 3,
+      "type": "line",
+      "point_indices": [
+        3,
+        0
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 4,
+      "type": "line",
+      "point_indices": [
+        4,
+        5
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 5,
+      "type": "line",
+      "point_indices": [
+        4,
+        2
+      ],
+      "bc_name": "PEC"
+    },
+    {
+      "id": 6,
+      "type": "line",
+      "point_indices": [
+        5,
+        1
+      ],
+      "bc_name": "PEC"
+    }
+  ],
+  "loops": [
+    {
+      "id": 0,
+      "segment_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "orientation": "CCW"
+    },
+    {
+      "id": 1,
+      "segment_ids": [
+        6,
+        4,
+        5,
+        1
+      ],
+      "orientation": "CCW"
+    }
+  ],
+  "regions": [
+    {
+      "id": 0,
+      "name": "Vacuum",
+      "outer_loop_id": 0,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum",
+      "eps_r": 1.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    },
+    {
+      "id": 1,
+      "name": "Vacuum2",
+      "outer_loop_id": 1,
+      "hole_loop_ids": [],
+      "material_tag": "vacuum2",
+      "eps_r": 10.0,
+      "mu_r": 1.0,
+      "tan_delta": 0.0
+    }
+  ],
+  "unit": "mm",
+  "mesh_size": 5.0,
+  "settings": {
+    "xmin": "0",
+    "xmax": "100",
+    "ymin": "0",
+    "ymax": "100",
+    "mesh_order": 1
+  },
+  "variables": [],
+  "point_exprs": [
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ],
+    [
+      null,
+      null
+    ]
+  ],
+  "mesh_size_expr": null
+}

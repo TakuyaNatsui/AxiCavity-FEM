@@ -1,6 +1,6 @@
-# AxiCavity-FEM v2 アーキテクチャ
+# AxiCavity-FEM アーキテクチャ（v3）
 
-ver2 のパッケージ設計と各層の責務を記述する。
+パッケージ設計と各層の責務を記述する（計算コアは v2 系のまま。GUI は v3 で PySide6 に置換）。
 
 ## レイヤ構成
 
@@ -44,7 +44,15 @@ import は上から下への一方向のみ（循環なし）。
 
 ### cli / gui
 - ユーザ入口。reports/fem_tm0/fem_hom の公開 API を組み合わせて使う。
-- GUI はサブプロセスで CLI を呼び出す（または直接 import 呼出）
+- v3 の GUI（PySide6）は内部でも層を分ける: `gui/core`（純 Python: 文書・スケッチ幾何・変換）←
+  `gui/sketch`（planegcs）← `gui/app/store.py`（状態と Undo）← `gui/ui`（ウィジェット）。`gui/jobs` は
+  gmsh・solve・post・report・export を**子プロセス**で実行する（`cli.cmd_*` を argv ごと呼ぶ）。
+  `gui/io` / `gui/project` はプロジェクト `.axiproj` と結果履歴、`gui/batch.py` は GUI を使わない解析
+  （`axicavity-fem-run` と Python の `Project`）。
+- 入口は `gui/launcher.py` 1 つにまとまっている（GUI・コア CLI・バッチ・GUI の子プロセス `job`・`version`・`selftest`）。
+  Windows 版（EXE）はこれをそのまま main にする。EXE は gmsh（GPL）を本体に入れないので、`.msh` の読込は
+  `gui/mshlite`（gmsh の読込 API の純 Python 版。コアの `import gmsh` に差し込む）、生成は `gui/jobs/meshing.py` から
+  別プロセスのメッシャ（`mesher/axicavity_mesh.py`、埋め込み Python + gmsh）。詳細は DEVELOPER_GUIDE の「Windows 版（EXE）」。
 
 詳細は別ドキュメント:
 - [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md): ファイル別コードマップ・規約と落とし穴・拡張レシピ（開発はまずこれ）

@@ -1,6 +1,6 @@
-﻿"""自動生成: MultiRegionGeometry を gmsh API で再構築するスクリプト.
+"""自動生成: MultiRegionGeometry を gmsh API で再構築するスクリプト.
 
-axicavity-fem-gui の Multi-Region Editor から書き出されたもの。
+axicavity-fem-v23 GUI の Multi-Region Editor から書き出されたもの。
 単位: mm  →  m 換算係数 scale = 0.001
 メッシュサイズ lc = mesh_size * scale = 5.0 * 0.001 = 0.005
 領域数 = 1  segment 数 = 8  loop 数 = 1

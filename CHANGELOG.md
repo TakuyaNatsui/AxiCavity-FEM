@@ -3,6 +3,72 @@
 All notable changes to this project are documented here.
 Versions follow [semantic versioning](https://semver.org/).
 
+## [3.0.0] — 2026-10-03 — new GUI and a Windows executable
+
+Version 3 replaces the wxPython GUI with a new PySide6 interface and adds a Windows
+executable. The solver core is the same code as 2.3.0 (only `__version__` changed), so
+results are identical for the same mesh.
+
+### Added
+
+- **Ribbon GUI** (PySide6) organised as Modeling → Physics → Mesh → Analysis → Results → View,
+  in Japanese and English.
+- **Parametric sketcher** with geometric constraints and driving dimensions, solved by
+  planegcs: coincident, horizontal, vertical, parallel, perpendicular, tangent, equal,
+  concentric, fix, symmetric and point-on-curve; distance, point–line distance,
+  circumference–line distance, radius and angle dimensions. A parameter table with
+  expressions drives dimensions and point coordinates. The origin and the z / r axes are
+  reference geometry; points drawn on an axis are constrained to it.
+- The editing operations of the version 2 Multi-Region Editor: insert / delete a point with
+  reconnection, line ⇄ arc (with flipping), close the outline, fillets, and automatic
+  splitting at intersections.
+- **Automatic region detection** and **automatic boundary conditions** (the axis and internal
+  interfaces become `None`, walls `PEC`), overridable per curve; per-region materials with
+  expressions for ε<sub>r</sub> and tanδ; geometry validation with warnings.
+- **Projects** (`.axiproj` with a `.axiproj.data/` folder) holding the geometry, the settings,
+  the meshes and the full history of results; older results are marked when the geometry or
+  settings changed since. Import / export of version 2 `.gmshproj` and Superfish `.af`;
+  export of `.msh` with `.materials.json`, Gmsh `.geo` and a self-contained Python script.
+- Meshing and analyses run in **child processes** with cancel and force stop. A confirmation
+  dialog shows the exact command lines, and `command.log` keeps them for re-running.
+- **Results tab**: field maps, a mode table with every engineering quantity for the selected
+  phase, field values by double-click, PNG, traveling-wave GIFs, field data export, and
+  opening result files from outside a project.
+- **3-D view** (pyvista, `viz3d` extra): the revolved cavity with wall, meridian planes,
+  cross-sections and a cutaway, arrows on a Cartesian grid, TM0 field lines repeated in φ,
+  HOM cos(nφ) patterns, time-phase animation, PNG and GIF.
+- **Batch runs**: `axicavity-fem-run` and the Python API `axicavity_fem.gui.batch.Project`
+  re-analyse a project with changed parameters (the sketch is re-solved), for parameter
+  scans and frequency tuning.
+- **Windows executable** `AxiCavity-FEM.exe` (Nuitka): the GUI and the command line in one
+  program, with Intel MKL PARDISO. Meshing runs in a bundled separate program (`mesher`,
+  containing Gmsh, distributed under the GPL with its source); the main program reads `.msh`
+  files with a pure-Python reader that reproduces Gmsh's node and element ordering.
+
+### Changed
+
+- The wxPython GUI and the wxGlade files are removed. `axicavity-fem-gui` starts the new
+  GUI; the command-line tool `axicavity-fem` is unchanged.
+- Geometry lives in `.axiproj` projects; `.gmshproj` is an import / export format.
+- `samples/` holds input files only; meshes and results are produced on demand.
+- pyvista is optional: without it the GUI starts and the 3-D button is disabled.
+
+### Fixed (issues of the version 2 GUI)
+
+- Exit did nothing; it now asks to save unsaved work.
+- Ctrl+A was bound to Superfish export; it now selects all.
+- *New* left the previous variables behind.
+- Changing units only relabelled the values; values can now be converted.
+- Region loops were not validated before meshing.
+- The `.geo` export ignored the element order, and the mesh order and the solver's element
+  order could disagree; there is now a single setting.
+- Reports and `command.log` were looked for in guessed places.
+- Traveling-wave results showed the post-processed values of the first phase only.
+- R/Q and V_eff were missing from the result table; E-wall was offered for HOM results.
+- GIF export could not be cancelled; field export lacked instantaneous / scaled values.
+
+Regression tests: `tests/test_known_bugs_v23.py`.
+
 ## [2.3.0] — 2026-07-24 — first public release of the version 2 line
 
 Version 2 is a **complete rewrite** of version 1. It keeps the same physics and
@@ -80,5 +146,5 @@ released; everything they introduced is included here.
 
 ## 1.x
 
-Version 1 lives on in this repository at tag [`v1.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v1.0)
-and branch [`v1`](https://github.com/TakuyaNatsui/AxiCavity-FEM/tree/v1).
+Version 1 lives on in this repository at tag
+[`v1.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v1.0).

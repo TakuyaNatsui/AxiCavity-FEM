@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axicavity-fem"
-version = "2.3.0"
-description = "2-D axisymmetric finite-element solver for RF cavity resonant modes (TM0 and higher-order modes)"
+version = "3.0.0"
+description = "2-D axisymmetric finite-element solver for RF cavity resonant modes (TM0 and higher-order modes), with a parametric sketch-based GUI"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -39,8 +39,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gui = ["wxPython>=4.2"]
-dev = ["pytest>=7", "pytest-cov"]
+gui = ["PySide6>=6.6", "planegcs>=0.8"]
+viz3d = ["pyvista>=0.44", "pyvistaqt>=0.11"]
+dev = ["pytest>=7", "pytest-cov", "pytest-qt>=4.2"]
 accel = ["pypardiso>=0.4"]
 
 [project.urls]
@@ -50,12 +51,16 @@ Issues = "https://github.com/TakuyaNatsui/AxiCavity-FEM/issues"
 
 [project.scripts]
 axicavity-fem = "axicavity_fem.cli.main:cli_main"
+axicavity-fem-run = "axicavity_fem.gui.batch:main"
 
 [project.gui-scripts]
 axicavity-fem-gui = "axicavity_fem.gui.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"axicavity_fem.gui" = ["ui/icons/*.svg", "ui/app_icon.svg", "i18n/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

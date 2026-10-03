@@ -1,9 +1,11 @@
-"""ver2.1: Multi-Region Editor の円弧 (arc) コアロジックのテスト.
+"""ver2.1: 円弧 (arc) を含む MultiRegionGeometry のコアロジックとエクスポートのテスト.
 
 - arc 数学 (中心/半径/劣弧角度) の正しさ
-- convert_selected_to_arc / convert_selected_to_line / update_arc_center
-- 端点ドラッグ相当で arc が line に戻ること
 - arc を含む geom が .msh / .geo / Python に正しくエクスポートされること
+
+ver3 では wx エディタ（``gui.multi_region_editor``）を廃止したため、ver2.3 の
+``arc_params_from_two_points`` / ``recompute_arc_params`` をこのファイルに複写して
+コアの検証だけを残す（エディタ操作の検証は ver3 の tests/test_edit_ops.py）。
 """
 
 from __future__ import annotations
@@ -12,17 +14,9 @@ import ast
 import math
 import subprocess
 import sys
-from pathlib import Path
 
-import matplotlib
 import pytest
 
-matplotlib.use("Agg")
-
-from axicavity_fem.gui.multi_region_editor import (
-    arc_params_from_two_points,
-    recompute_arc_params,
-)
 from axicavity_fem.shared.gmsh_export_occ import (
     export_geo_multi_region,
     export_msh_multi_region,
@@ -34,6 +28,45 @@ from axicavity_fem.shared.multi_region_model import (
     Region,
     Segment,
 )
+
+
+# ---------------------------------------------------------------------------
+# ver2.3 gui/multi_region_editor.py からの複写（PointLineEditor 互換の劣弧の規約）
+# ---------------------------------------------------------------------------
+def _minor_arc_angles(p1, p2, center):
+    a1 = math.degrees(math.atan2(p1[1] - center[1], p1[0] - center[0]))
+    a2 = math.degrees(math.atan2(p2[1] - center[1], p2[0] - center[0]))
+    da = a2 - a1
+    while da <= -180.0:
+        da += 360.0
+    while da > 180.0:
+        da -= 360.0
+    if da >= 0:
+        theta1, theta2 = a1, a1 + da
+    else:
+        theta1, theta2 = a2, a2 + abs(da)
+    if theta2 <= theta1:
+        theta2 += 360.0
+    return theta1, theta2
+
+
+def arc_params_from_two_points(p1, p2):
+    mx, my = (p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0
+    dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+    dist = math.hypot(dx, dy)
+    if dist < 1e-12:
+        raise ValueError("2 端点が一致しているため円弧を作れません。")
+    perp_x, perp_y = -dy / dist, dx / dist
+    center = (mx + perp_x * (dist / 2.0), my + perp_y * (dist / 2.0))
+    radius = math.hypot(p1[0] - center[0], p1[1] - center[1])
+    theta1, theta2 = _minor_arc_angles(p1, p2, center)
+    return center, radius, theta1, theta2
+
+
+def recompute_arc_params(p1, p2, center):
+    radius = math.hypot(p1[0] - center[0], p1[1] - center[1])
+    theta1, theta2 = _minor_arc_angles(p1, p2, center)
+    return radius, theta1, theta2
 
 
 # ---------------------------------------------------------------------------
@@ -77,70 +110,7 @@ def test_recompute_arc_params_center_change():
 
 
 # ---------------------------------------------------------------------------
-# 2. エディタメソッド (ヘッドレス Panel)
-# ---------------------------------------------------------------------------
-@pytest.fixture
-def panel():
-    wx = pytest.importorskip("wx")
-    from axicavity_fem.gui.multi_region_editor import MultiRegionEditorPanel
-    try:
-        app = wx.App(False)
-        frame = wx.Frame(None)
-        p = MultiRegionEditorPanel(frame, parent_frame=frame)
-    except Exception as e:
-        pytest.skip(f"wx GUI を構築できません: {e}")
-    yield p
-    frame.Destroy()
-    app.Destroy()
-
-
-def _square_with_one_segment(panel):
-    g = panel.get_geometry()
-    g.points.extend([(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (0.0, 5.0)])
-    for i, (a, b) in enumerate([(0, 1), (1, 2), (2, 3), (3, 0)]):
-        g.segments.append(Segment(id=i, type="line", point_indices=[a, b],
-                                   bc_name="PEC"))
-    return g
-
-
-def test_convert_to_arc_and_back(panel):
-    g = _square_with_one_segment(panel)
-    panel.selected_segment_id = 0
-    assert panel.convert_selected_to_arc() is True
-    seg = g.segment_by_id(0)
-    assert seg.type == "arc"
-    assert seg.center is not None and seg.radius is not None
-    assert seg.theta1 is not None and seg.theta2 is not None
-    # 戻す
-    assert panel.convert_selected_to_line() is True
-    seg = g.segment_by_id(0)
-    assert seg.type == "line"
-    assert seg.center is None and seg.radius is None
-
-
-def test_update_arc_center(panel):
-    g = _square_with_one_segment(panel)
-    panel.selected_segment_id = 0
-    panel.convert_selected_to_arc()
-    panel.update_arc_center(5.0, -8.0)
-    seg = g.segment_by_id(0)
-    assert seg.center == (5.0, -8.0)
-    # radius = 中心と端点 (0,0) の距離
-    assert seg.radius == pytest.approx(math.hypot(5.0, 8.0), rel=1e-12)
-
-
-def test_drag_reverts_arc_to_line(panel):
-    g = _square_with_one_segment(panel)
-    panel.selected_segment_id = 0
-    panel.convert_selected_to_arc()
-    assert g.segment_by_id(0).type == "arc"
-    # 点 0 は segment 0 (0->1) と segment 3 (3->0) の端点
-    panel._revert_arcs_touching_point(0)
-    assert g.segment_by_id(0).type == "line"
-
-
-# ---------------------------------------------------------------------------
-# 3. arc を含む geom のエクスポート
+# 2. arc を含む geom のエクスポート
 # ---------------------------------------------------------------------------
 def _pillbox_with_arc() -> MultiRegionGeometry:
     """右辺 (r=a) を円弧にした pillbox。"""

@@ -2,15 +2,12 @@
 
 - モデル: point_exprs/center_expr/mesh_size_expr/eps_r_expr の往復・後方互換・
   長さ不変条件、同期ヘルパ (append/set/pop_point)。
-- 再計算 (ヘッドレス GUI): 変数変更で式付き座標が動く、ドラッグで式破棄、arc 追従。
+- 再計算（GUI 側の式保持・変数変更・ドラッグで式破棄）は ver3 では tests/test_store_expressions.py で検証する。
 - Export Python: 変数定義＋式が出力され、生成物が compile() 可能。
 """
 from __future__ import annotations
 
-import matplotlib
 import pytest
-
-matplotlib.use("Agg")
 
 from axicavity_fem.shared.multi_region_model import (
     Loop,
@@ -178,76 +175,3 @@ def test_export_python_build_model_accepts_overrides(tmp_path):
 
     # z=w の点が 250mm = 0.25m として反映される (scale mm→m = 1e-3)
     assert max(recorded_z) == pytest.approx(0.25)
-
-
-# ---------------------------------------------------------------------------
-# ヘッドレス GUI: 更新で式保存・変数変更で再計算・ドラッグで式破棄
-# ---------------------------------------------------------------------------
-wx = pytest.importorskip("wx")
-
-
-@pytest.fixture
-def frame():
-    from axicavity_fem.gui.main_frame import MyFrame
-    try:
-        app = wx.App(False)
-        frm = MyFrame(None, wx.ID_ANY, "")
-    except Exception as e:  # pragma: no cover - 環境依存
-        pytest.skip(f"wx GUI を構築できません: {e}")
-    yield frm
-    frm.Destroy()
-    app.Destroy()
-
-
-def _set_var(frame, row, name, expr):
-    g = frame.mr_variables_grid
-    g.SetCellValue(row, 0, name)
-    g.SetCellValue(row, 1, expr)
-    frame._sync_mr_variables_from_grid()
-
-
-def test_update_point_stores_and_shows_expression(frame):
-    p = frame.mr_editor_panel
-    geom = p.get_geometry()
-    idx = geom.append_point(0.0, 0.0)
-    p.selected_point_index = idx
-    _set_var(frame, 0, "a", "3")
-    frame.mr_point_z_ctrl.SetValue("a+2")
-    frame.mr_point_r_ctrl.SetValue("10")   # 素の数値 → 式保存しない
-    frame.OnMrUpdatePoint(None)
-    assert geom.points[idx] == pytest.approx((5.0, 10.0))
-    assert geom.point_exprs[idx] == ("a+2", None)
-    # 再選択で欄に式が戻る (z=式, r=数値)
-    frame.on_mr_selection_changed()
-    assert frame.mr_point_z_ctrl.GetValue() == "a+2"
-    assert "10" in frame.mr_point_r_ctrl.GetValue()
-
-
-def test_variable_change_recomputes_point(frame):
-    p = frame.mr_editor_panel
-    geom = p.get_geometry()
-    idx = geom.append_point(10.0, 0.0, "a", None)
-    _set_var(frame, 0, "a", "10")
-    frame.OnMrVariableCellChanged(None)
-    assert geom.points[idx][0] == pytest.approx(10.0)
-    # a を 25 に変更 → 点が動く
-    frame.mr_variables_grid.SetCellValue(0, 1, "25")
-    frame.OnMrVariableCellChanged(None)
-    assert geom.points[idx][0] == pytest.approx(25.0)
-
-
-def test_drag_clears_expression(frame):
-    p = frame.mr_editor_panel
-    geom = p.get_geometry()
-    idx = geom.append_point(5.0, 5.0, "a", "b")
-    p.selected_point_index = idx
-    p.dragging_point = True
-
-    class _Evt:
-        xdata = 7.0
-        ydata = 8.0
-    evt = _Evt()
-    evt.inaxes = p.axes
-    p.on_motion(evt)
-    assert geom.point_exprs[idx] == (None, None)
-    assert geom.points[idx] == pytest.approx((7.0, 8.0))

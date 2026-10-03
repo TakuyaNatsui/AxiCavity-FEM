@@ -1,7 +1,10 @@
-﻿# 周波数自動調整の例（Export Python Script の活用）
+# 周波数自動調整の例（Python スクリプト書き出しの活用）
 
-Multi-Region Editor の **[Export Python Script]** で書き出したスクリプトは、
-次の形になっています。
+GUI の「ファイル」→「書き出し」→「Python スクリプト」で書き出したスクリプト（ver2.3 の Multi-Region Editor の
+[Export Python Script] と同じもの）は、次の形になっています。
+
+> パラメータを持つ `.axiproj` プロジェクトがあれば、[`../parameter_scan/`](../parameter_scan/) の `Project` API
+> （寸法拘束も解き直す）を使う方法もあります。
 
 ```python
 _SCALE = 0.001

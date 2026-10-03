@@ -17,14 +17,20 @@ pytest.importorskip("h5py")
 from axicavity_fem.cli.main import cli_main  # noqa: E402
 from axicavity_fem.shared.hdf5_io import is_v2, read_results  # noqa: E402
 
-_SAMPLES = Path(__file__).resolve().parents[1] / "samples"
-_CYL_2ND = _SAMPLES / "cylinder100mm.msh"      # 円筒空洞（2次要素, r=50mm, L=100mm）
-_TRAVELING = _SAMPLES / "s-band_1cell.msh"     # 周期境界を持つ S バンド 1 セル
+_CYL_2ND: Path       # samples/cylinder100mm.gmshproj（r = 50 mm, L = 100 mm）の 2 次メッシュ
+_TRAVELING: Path     # samples/s-band_1cell.gmshproj（S バンド 1 セル）の 2 次メッシュ
+
+
+@pytest.fixture(autouse=True)
+def _meshes(sample_mesh):
+    global _CYL_2ND, _TRAVELING
+    _CYL_2ND = sample_mesh("cylinder100mm", 2)
+    _TRAVELING = sample_mesh("s-band_1cell", 2)
+
 
 _J01 = 2.4048255576957728
 
 
-@pytest.mark.skipif(not _CYL_2ND.exists(), reason="cylinder100mm.msh なし")
 def test_cli_tm0_solve_post_info(tmp_path):
     out = tmp_path / "tm0.h5"
     rc = cli_main(["solve", "--type", "tm0", "-m", str(_CYL_2ND),
@@ -49,7 +55,6 @@ def test_cli_tm0_solve_post_info(tmp_path):
     assert cli_main(["info", "-i", str(out)]) == 0
 
 
-@pytest.mark.skipif(not _CYL_2ND.exists(), reason="cylinder100mm.msh なし")
 def test_cli_hom_solve_post(tmp_path):
     from axicavity_fem.fem_hom.solver import solve_hom
 
@@ -73,7 +78,6 @@ def test_cli_hom_solve_post(tmp_path):
     assert post[1]["standing"][0]["Q"] > 0
 
 
-@pytest.mark.skipif(not _TRAVELING.exists(), reason="s-band_1cell.msh なし")
 def test_cli_tm0_traveling_roundtrip(tmp_path):
     out = tmp_path / "tw.h5"
     rc = cli_main(["solve", "--type", "tm0", "-m", str(_TRAVELING),

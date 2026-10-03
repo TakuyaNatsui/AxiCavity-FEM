@@ -1,4 +1,4 @@
-﻿"""ver2.3 探索周波数指定 (--target-freq / GUI 'Predicted frequency') の検証.
+"""ver2.3 探索周波数指定 (--target-freq / GUI 'Predicted frequency') の検証.
 
 1. 単位変換 ``k2_from_freq_ghz`` と ``k^2 → GHz`` の往復。
 2. sigma / which の決定ロジック（未指定なら従来どおり、指定時は k^2(f)・'LM'）。

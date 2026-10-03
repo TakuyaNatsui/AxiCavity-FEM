@@ -1,6 +1,6 @@
 """周波数自動調整の例: エクスポートした build_model() を外部から呼ぶ。
 
-Multi-Region Editor の [Export Python Script] で書き出したスクリプトは
+GUI の「ファイル」→「書き出し」→「Python スクリプト」で書き出したスクリプトは
 
     def build_model(out_msh=..., mesh_order=..., **user_vars):
         ...
