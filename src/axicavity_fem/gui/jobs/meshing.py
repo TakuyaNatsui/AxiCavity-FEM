@@ -89,10 +89,11 @@ def run_mesher(geom, msh_path: Path, mesh_order: int, verbose: int, log: Optiona
     tie = tie_to_this_process(proc)
     try:
         assert proc.stdout is not None
-        for line in proc.stdout:
-            line = line.rstrip()
-            if line:
-                log(line)
+        with proc.stdout:
+            for line in proc.stdout:
+                line = line.rstrip()
+                if line:
+                    log(line)
         rc = proc.wait()
     finally:
         release_tie(tie)

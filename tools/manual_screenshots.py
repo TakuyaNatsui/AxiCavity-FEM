@@ -8,7 +8,7 @@
     v3_mesh.png       メッシュタブ（一時プロジェクトでメッシュを生成して重ね表示）
     v3_analysis.png   解析タブ
     v3_run_confirm.png 実行確認ダイアログ
-    v3_results.png    結果タブ（同名の *_TW_TM0_processed.h5 があればそれ、無ければ生成した結果）
+    v3_results.png    結果タブ（チュートリアル 3 の手順で解析した結果）
     v3_file.png       ファイルタブ
     v3_view3d.png     3D 表示のウィンドウ（pyvista があるとき）
 
@@ -49,6 +49,7 @@ def main(argv=None) -> int:
     from axicavity_fem.gui.ui.dialogs.run_confirm import RunConfirmDialog, run_summary
     from axicavity_fem.gui.ui.main_window import RIBBON_TABS, MainWindow
     from axicavity_fem.gui.core.document import SketchArc, SketchLine
+    from axicavity_fem.gui.core.sketch.model import point_pos
 
     set_language("ja")
     win = MainWindow()
@@ -123,16 +124,22 @@ def main(argv=None) -> int:
     shot("v3_run_confirm", dialog)
     dialog.close()
 
-    # 結果: 同名の進行波 TM0 の結果があればそれを開く。無ければ解析して表示
-    result = sample.with_name(f"{sample.stem}_TW_TM0_processed.h5")
-    if result.exists():
-        assert win.open_result_file(result)
-    else:
-        assert win.analysis.run(), win.analysis.last_error
-        for _ in range(3000):
-            if not win.analysis.running:
-                break
-            QtTest.QTest.qWait(200)
+    # 結果: チュートリアル 3 の手順で解析して表示（両端の面を E-short、進行波、位相 120°、2 モード）
+    sketch = store.active_sketch()
+    lines = [c for c in curves if isinstance(c, SketchLine)]
+    z_of_line = [sorted(point_pos(sketch, p)[0] for p in (c.p1, c.p2)) for c in lines]
+    z_min, z_max = min(z[0] for z in z_of_line), max(z[1] for z in z_of_line)
+    ends = [c.id for c, (a, b) in zip(lines, z_of_line)
+            if abs(b - a) < 1e-6 and min(abs(a - z_min), abs(a - z_max)) < 1e-6]
+    assert len(ends) == 2, ends
+    store.set_boundary(ends, "E-short")
+    store.set_analysis(wave="traveling", phases="120", numModes=2)
+    assert win.analysis.run(), win.analysis.last_error
+    for _ in range(3000):
+        if not win.analysis.running:
+            break
+        QtTest.QTest.qWait(200)
+    assert win.analysis.job.status == "done", win.analysis.job.error
     tab("results")
     win.result_model.set_options(show_vectors=True)
     for _ in range(50):

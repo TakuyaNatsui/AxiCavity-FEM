@@ -20,9 +20,17 @@ from ..app.store import DocumentStore
 from ..core.convert import ConvertError, check_geometry, to_multi_region
 from ..io.axiproj import ResultEntry, raw_file_name, result_kind
 from ..project.controller import ProjectController
-from .commands import build_commands, command_line, post_argv, processed_file_name, report_argv, validate_analysis
+from .commands import (
+    build_commands,
+    command_line,
+    post_argv,
+    processed_file_name,
+    report_argv,
+    solver_type_of,
+    validate_analysis,
+)
 from .mesh_controller import MeshController
-from .pipeline import GEOMETRY_FILE, JOB_FILE, MATERIALS_FILE, MESH_FILE
+from .pipeline import GEOMETRY_FILE, JOB_FILE, MESH_FILE, write_materials_json
 from .session import JobSession, JobState
 
 
@@ -106,9 +114,7 @@ class AnalysisController(QtCore.QObject):
         reuse = self.mesh.reusable_mesh()
         if reuse is not None:
             shutil.copy2(reuse, result_dir / MESH_FILE)
-            materials = reuse.with_name(MATERIALS_FILE)
-            if materials.exists():
-                shutil.copy2(materials, result_dir / MATERIALS_FILE)
+            write_materials_json(converted.geom, result_dir / MESH_FILE)     # 材料はメッシュのハッシュに入らないので今の値で書く
             job["meshReused"] = str(reuse)
         (result_dir / JOB_FILE).write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
         self.project.register_submitted(result_dir, cmds["kind"])
@@ -124,7 +130,8 @@ class AnalysisController(QtCore.QObject):
         if self.session.running or not raw.exists():
             self._fail("生の結果（solve の出力）がありません。")
             return False
-        argv = post_argv(self.store.document, raw.name, processed_file_name(raw.name))
+        argv = post_argv(self.store.document, raw.name, processed_file_name(raw.name),
+                         solver_type=solver_type_of(entry.kind))
         self._update_job(entry.dir, kind="post", argv_key="post", argv=argv)
         self.project.set_running(entry.dir)
         self._log_commands(entry.id, [argv])
@@ -141,7 +148,7 @@ class AnalysisController(QtCore.QObject):
         if self.session.running or not source.exists():
             self._fail("結果ファイルがありません。先に解析を実行してください。")
             return False
-        argv = report_argv(self.store.document, source.name)
+        argv = report_argv(self.store.document, source.name, solver_type=solver_type_of(entry.kind))
         self._update_job(entry.dir, kind="report", argv_key="report", argv=argv)
         self.project.set_running(entry.dir)
         self._log_commands(entry.id, [argv])
@@ -232,7 +239,15 @@ class AnalysisController(QtCore.QObject):
         else:
             self.project.set_running(None)
             if job.status == "done":
-                self.project.finish_result(job.dir, "done", summary=summary, files=files if files else None)
+                # レポートは post の失敗を直さないので、失敗した結果の状態とエラーは残す
+                keep = job.kind == "report" and entry is not None and entry.status != "done"
+                self.project.finish_result(job.dir, entry.status if keep else "done",
+                                           error=entry.error if keep else "",
+                                           summary=summary, files=files if files else None)
+            elif job.kind == "post":
+                # 失敗しても前の post の値は残るが、頼んだ σ・β の値ではないので完了とはしない。
+                # キャンセルは段階の切れ目で止まるので、前か新しい値が残っている
+                self.project.finish_result(job.dir, job.status, error=job.error or "")
             else:
                 self.project.refresh_results()
         if job.status == "error":

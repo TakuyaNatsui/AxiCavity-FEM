@@ -6,7 +6,9 @@ ver3 のメインウィンドウは VTK を含まないので offscreen で開�
 """
 
 import os
+import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -39,6 +41,8 @@ def win(qtbot, tmp_path, monkeypatch):
     QtWidgets.QApplication.processEvents()
     yield w
     w.project._mark_saved()                        # 確認ダイアログを出さずに閉じる
+    # ジョブの実行中に assert が落ちても「実行中です」の確認で止まらず、失敗を報告する（closeEvent が子プロセスを止める）
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.Yes))
     w.close()
     w.deleteLater()
     QtWidgets.QApplication.processEvents()
@@ -298,7 +302,7 @@ def test_units_axis_range_language_and_layout(qtbot, win, monkeypatch, tmp_path)
     assert store.document.meta.units == "cm"
     sketch = store.active_sketch()
     points = sorted(point_pos(sketch, e.id) for e in sketch.entities if isinstance(e, SketchPoint) and not e.projection)
-    assert points == pytest.approx([(0, 2), (4, 0), (4, 2)])               # 原点の角は参照の原点
+    assert [c for p in points for c in p] == pytest.approx([0, 2, 4, 0, 4, 2])   # 原点の角は参照の原点
     assert "cm" in win.tree_item(("section", "mesh")).text(0)
 
     monkeypatch.setattr(QtWidgets.QInputDialog, "getText",
@@ -488,7 +492,92 @@ def test_analysis_from_ribbon(qtbot, win, monkeypatch, tmp_path):
     store.set_analysis(numModes=5)
     assert "設定変更前" in win.tree_item(("section", "results")).child(0).text(0)
     assert win.results_panel.relation_label.isVisible()
+    # 外部の h5 を表示中は post / レポートの対象が無い（表示していない結果を書き換えない）
+    assert win.open_result_file(project.results[0].file("raw"))
+    assert model.entry is None and not win.post_action.isEnabled() and not win.report_action.isEnabled()
+    # 結果を選び直すとボタンが戻る（モデルの読み込みの後で判定する）
+    win._select_result("0001-tm0-sw")
+    assert model.entry is not None and win.post_action.isEnabled() and win.report_action.isEnabled()
+    # 解析の post だけ失敗: 別の結果を表示中でも、タブは変えずに失敗した結果を対象にする（他の結果を黙って書き換えない）
+    other = project.data_dir / "results" / "0002-tm0-sw"
+    shutil.copytree(project.results[0].dir, other)
+    project.refresh_results()
+    win._select_result("0002-tm0-sw")
+    win._show_tab("analysis")
+    project.finish_result(project.result("0001-tm0-sw").dir, "error", error="post failed")
+    win._on_job_finished(SimpleNamespace(kind="analysis", status="error", id="0001-tm0-sw"))
+    assert tab(win) == "analysis" and model.entry.id == "0001-tm0-sw"
+    assert win._target_result().id == "0001-tm0-sw" and win.post_action.isEnabled()
+    processed = other / "model_SW_TM0_processed.h5"
+    before = processed.stat().st_mtime_ns
+    # レポートは post の失敗を直さないので、状態とエラーを残す
+    win.report_action.trigger()
+    qtbot.waitUntil(lambda: not analysis.running, timeout=300_000)
+    assert analysis.job.status == "done", (analysis.job.error, analysis.job.traceback)
+    assert project.result("0001-tm0-sw").status == "error" and project.result("0001-tm0-sw").error == "post failed"
+    assert "エラー" in win.tree_item(("result", "0001-tm0-sw")).text(0)
+    # post で直る
+    win.post_action.trigger()
+    qtbot.waitUntil(lambda: not analysis.running, timeout=120_000)
+    qtbot.waitUntil(lambda: project.result("0001-tm0-sw").status == "done", timeout=10_000)
+    assert project.result("0001-tm0-sw").error == "" and processed.stat().st_mtime_ns == before
+    # post 再実行の失敗: 前の post の値は残るが、頼んだ σ・β の値ではないので完了のままにしない。raw を戻せばやり直せる
+    raw = project.result("0001-tm0-sw").file("raw")
+    good = raw.read_bytes()
+    own_processed = project.result("0001-tm0-sw").file("processed")
+    kept = own_processed.read_bytes()
+    raw.write_bytes(b"not an hdf5 file")
+    win.post_action.trigger()
+    qtbot.waitUntil(lambda: not analysis.running, timeout=120_000)
+    qtbot.waitUntil(lambda: project.result("0001-tm0-sw").status == "error", timeout=10_000)
+    assert project.result("0001-tm0-sw").error and win.post_action.isEnabled()
+    assert processed.stat().st_mtime_ns == before and own_processed.read_bytes() == kept
+    assert model.data.post_params(model.selection)["Q"] > 0
+    raw.write_bytes(good)
+    win.post_action.trigger()
+    qtbot.waitUntil(lambda: not analysis.running, timeout=120_000)
+    qtbot.waitUntil(lambda: project.result("0001-tm0-sw").status == "done", timeout=10_000)
+    assert model.data.post_params(model.selection)["Q"] > 0
+    # post 再実行のキャンセルは cancelled と記録する（エラーにしない）
+    win.post_action.trigger()
+    assert analysis.cancel()
+    qtbot.waitUntil(lambda: not analysis.running, timeout=120_000)
+    qtbot.waitUntil(lambda: project.result("0001-tm0-sw").status == "cancelled", timeout=10_000)
+    assert win.post_action.isEnabled()
     win.session.wait()
+    # 何も表示せずに post 再実行して失敗: 次の対象は失敗した結果（一番新しい完了した結果に移らない）
+    project.finish_result(project.result("0001-tm0-sw").dir, "done")
+    model.clear()
+    project.select_result(None)
+    assert win._target_result().id == "0002-tm0-sw"
+    project.finish_result(project.result("0002-tm0-sw").dir, "error", error="post failed")
+    win._on_job_finished(SimpleNamespace(kind="post", status="error", id="0002-tm0-sw-post"))
+    assert win._target_result().id == "0002-tm0-sw" and tab(win) == "analysis"
+    # メッシュジョブ中は post / レポートが無効で、終わると戻る
+    win.session.wait()
+    win.mesh_generate_action.trigger()
+    assert win.session.running and not win.post_action.isEnabled() and not win.report_action.isEnabled()
+    qtbot.waitUntil(lambda: not win.session.running, timeout=120_000)
+    assert win.post_action.isEnabled() and win.report_action.isEnabled()
+    win.session.wait()
+
+
+def test_target_result_of_a_shown_result_without_output():
+    """raw の無い結果を表示中は、post / レポートの対象が無い（他の結果に移らない）."""
+    entry = SimpleNamespace(id="0001-tm0-sw", status="error", has_output=False)
+    done = SimpleNamespace(id="0002-tm0-sw", status="done", has_output=True)
+    failed = SimpleNamespace(id="0003-tm0-sw", status="error", has_output=True)
+    entries = {e.id: e for e in (entry, done, failed)}
+    project = SimpleNamespace(results=[failed, done, entry], active_result_id=None, result=entries.get)
+    model = SimpleNamespace(entry=entry, path=None)
+    win_like = SimpleNamespace(project=project, result_model=model)
+    assert MainWindow._target_result(win_like) is None
+    # 何も表示していないときだけ、一番新しい完了した結果に移る
+    model.entry = None
+    assert MainWindow._target_result(win_like) is done
+    # 選択中の結果があればそれ（post だけ失敗していても raw から直せる）
+    project.active_result_id = failed.id
+    assert MainWindow._target_result(win_like) is failed
 
 
 def test_results_tab_with_sample_files(qtbot, win, monkeypatch, tmp_path):

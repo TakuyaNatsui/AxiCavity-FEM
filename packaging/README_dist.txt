@@ -17,6 +17,7 @@ GUI でパラメトリックに形状を描き、メッシュ生成・解析・�
 
   使い方: USER_MANUAL.md（日本語。テキストエディタやブラウザで読めます）
   サンプル: samples\ の .gmshproj（GUI の「ファイル」→「取り込み」→「形状の取り込み」で開く）
+  3.0.0 以前の結果は、値が直らないものがあります。USER_MANUAL.md §13「後処理の修正」と CHANGELOG.md を見てください。
 
 コマンドライン（コマンドプロンプト / PowerShell で、このフォルダから）
 --------------------------------------------------------------------
@@ -52,6 +53,7 @@ GUI でパラメトリックに形状を描き、メッシュ生成・解析・�
   docs\images\                USER_MANUAL.md の図
   USER_MANUAL.md              ユーザーマニュアル（日本語）
   PHYSICS_AND_CONVENTIONS.md  物理量と規約の説明
+  CHANGELOG.md                変更履歴（英語）
   LICENSE                     AxiCavity-FEM のライセンス（MIT）
   THIRD_PARTY_NOTICES.txt     同梱している第三者ソフトウェアのライセンス
   （そのほかの .dll / .pyd / フォルダは Python と依存ライブラリ）
@@ -70,6 +72,8 @@ English
 AxiCavity-FEM computes the resonant modes of axisymmetric RF cavities (TM0 and higher-order modes, standing and
 traveling waves) with the 2-D finite-element method: parametric sketching, meshing, solving and result display (incl. 3D).
 Source code, manual and issues: https://github.com/TakuyaNatsui/AxiCavity-FEM
+
+Results made with version 3.0.0 or earlier: some values were wrong; see CHANGELOG.md and section 13 of USER_MANUAL.md.
 
 Start: double-click AxiCavity-FEM.exe. If Windows SmartScreen says "Windows protected your PC" (the executable is
 not code-signed), choose "More info" -> "Run anyway". Keep the whole folder together.

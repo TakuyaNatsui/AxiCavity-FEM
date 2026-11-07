@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axicavity-fem"
-version = "3.0.0"
+version = "3.0.1"
 description = "2-D axisymmetric finite-element solver for RF cavity resonant modes (TM0 and higher-order modes), with a parametric sketch-based GUI"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -60,7 +60,7 @@ axicavity-fem-gui = "axicavity_fem.gui.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"axicavity_fem.gui" = ["ui/icons/*.svg", "ui/app_icon.svg", "i18n/*.json"]
+"axicavity_fem.gui" = ["ui/icons/*.svg", "ui/app_icon.png", "ui/app_icon_small.png", "i18n/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

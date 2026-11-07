@@ -169,8 +169,8 @@ class ProjectController(QtCore.QObject):
             self._mark_saved()
             self.refresh_results()
             active = self.result(project.active_result)
-            if active is not None and active.status == "done":
-                self.active_result_id = active.id
+            if active is not None and (active.status == "done" or active.has_output):
+                self.active_result_id = active.id      # post だけ失敗した結果も選択を戻す（post 再実行の対象）
             warnings: list[str] = []
         elif name.endswith(GMSHPROJ_SUFFIX) or name.endswith(SUPERFISH_SUFFIX):
             if name.endswith(GMSHPROJ_SUFFIX):

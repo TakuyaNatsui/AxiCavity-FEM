@@ -29,7 +29,7 @@ python examples/dielectric_loss/run_dielectric_loss.py
 ## 注意（既知の制約）
 
 - **ε_r を大きくしすぎる（例 9.0）と最低次モードを取り逃すことがある**。
-  shift-invert の σ が ε_r に追従しない既知の制約（README の Known constraints）。
+  shift-invert の σ が ε_r に追従しない既知の制約（USER_MANUAL.md の「既知の制約」）。
   本例では ε_r=2.1 で TM010 が正しく得られることを確認している。
 - 摂動法はモード形状の変化を無視する近似（tanδ ≲ 0.05 目安）。
 - TM0 の部分充填では E 場が H_φ の微分から再構成されるため、損失配分の収束は

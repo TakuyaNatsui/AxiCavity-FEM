@@ -69,6 +69,15 @@ def test_tm0_standing_with_post_matches_ver23(tmp_path):
     report = analysis_pipeline.run_job("report", folder)
     assert (folder / report["files"]["report"]).exists()                    # model_SW_TM0_processed_report/index.html
     assert report["summary"]["modes"][0]["Q"] == pytest.approx(q_lower)
+    assert set(report["files"]) == {"report"}                               # レポートは他のファイルの登録を変えない
+
+    # processed が壊れた結果: raw を入力に渡せばレポートは完了する（要約はレポートの入力から読む。
+    # GUI の Create report は processed があれば processed を選ぶので、この場合は失敗する）
+    (folder / files["processed"]).write_bytes(b"not an hdf5 file")
+    job["argv"]["report"] = report_argv(doc, files["raw"])
+    (folder / pipeline.JOB_FILE).write_text(json.dumps(job), encoding="utf-8")
+    report = analysis_pipeline.run_job("report", folder)
+    assert (folder / report["files"]["report"]).exists()
 
 
 def test_traveling_and_hom_without_post(tmp_path):

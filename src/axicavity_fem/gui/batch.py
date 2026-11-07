@@ -42,6 +42,7 @@ from .core.expressions import resolve_params
 from .core.hashes import geometry_hash, mesh_hash, model_hash
 from .core.legacy import GMSHPROJ_SUFFIX, SUPERFISH_SUFFIX, load_gmshproj
 from .io.axiproj import (
+    SOLVER_WARNING_PREFIXES,
     PROJECT_SUFFIX,
     ProjectFile,
     append_command_log,
@@ -53,9 +54,13 @@ from .io.axiproj import (
     write_result_meta,
 )
 from .io.superfish import load_superfish
+from ..shared.boundary_groups import CANONICAL_NAMES, canonical_bc_name
+from ..shared.material_resolver import build_material_table_from_geometry
+from ..shared.mesh_loader import load_mesh
+from ..shared.multi_region_model import VACUUM_TAG
 from .jobs.analysis_pipeline import run_job
-from .jobs.commands import build_commands, command_line
-from .jobs.pipeline import GEOMETRY_FILE, JOB_FILE, MESH_FILE
+from .jobs.commands import build_commands, command_line, processed_file_name, validate_analysis
+from .jobs.pipeline import GEOMETRY_FILE, JOB_FILE, MATERIALS_FILE, MESH_FILE, materials_sidecar_path, write_materials_json
 
 LogFn = Callable[[str], None]
 GENERATOR = "axicavity-fem batch"
@@ -246,8 +251,10 @@ class Project:
         self.store.set_post(**patch)
 
     def check(self) -> tuple[list[str], list[str]]:
+        """(エラー, 警告). GUI の解析前の検証と同じ（形状と解析の設定）."""
         issues = check_geometry(self.document)
-        return ([i.message for i in issues if i.level == "error"], [i.message for i in issues if i.level != "error"])
+        return ([i.message for i in issues if i.level == "error"] + validate_analysis(self.document),
+                [i.message for i in issues if i.level != "error"])
 
     # ---- 保存 -------------------------------------------------------------
 
@@ -287,6 +294,32 @@ class Project:
 
     # ---- 実行 -------------------------------------------------------------
 
+    def _check_given_mesh(self, mesh_file, geom) -> Optional[Path]:
+        """渡された .msh を確かめる. 文書に無い材料タグがあれば、そのメッシュの隣の材料ファイルを返す（無ければ文書の材料で解く）."""
+        path = Path(mesh_file)
+        if not path.is_file():
+            raise ValueError(f"mesh_file がありません: {path}")
+        try:
+            mesh = load_mesh(path, int(self.document.mesh.order))
+        except Exception as exc:  # noqa: BLE001  gmsh は素の Exception を出す
+            raise ValueError(f"mesh_file を読めません: {path}: {exc}") from exc
+        if mesh.num_elements == 0:
+            raise ValueError(f"mesh_file に {self.document.mesh.order} 次の三角形要素がありません（メッシュの次数を確かめてください）: {path}")
+        table = build_material_table_from_geometry(geom)
+        if mesh.region_names is None and any(
+                float(m.get("eps_r", 1.0)) != 1.0 or float(m.get("tan_delta", 0.0)) != 0.0 for m in table.values()):
+            raise ValueError(f"mesh_file に領域の情報（2D の Physical）が無いので、文書の誘電体を使えません: {path}")
+        tags = {name for name in (mesh.region_names or {}).values()
+                if name not in (VACUUM_TAG, "Domain") and not name.startswith("PhysicalGroup_")
+                and canonical_bc_name(name) not in CANONICAL_NAMES}
+        foreign = tags - set(table)
+        if not foreign:
+            return None
+        sidecar = materials_sidecar_path(path)
+        if not sidecar.exists():
+            raise ValueError(f"mesh_file の材料タグ {sorted(foreign)} が文書にも {sidecar.name} にもありません")
+        return sidecar
+
     def run(self, out_dir: Optional[str | Path] = None, post: Optional[bool] = None, register: bool = False,
             log: Optional[LogFn] = None, mesh_file: Optional[str | Path] = None) -> RunResult:
         """メッシュ → solve →（post）を実行する.
@@ -321,6 +354,16 @@ class Project:
             folder = Path(out_dir)
         else:
             folder = self.default_out_dir(kind)
+        mesh_materials = self._check_given_mesh(mesh_file, converted.geom) if mesh_file is not None else None
+        given_mesh_here = mesh_file is not None and Path(mesh_file).resolve() == (folder / MESH_FILE).resolve()
+        raw_name, processed_name = cmds["raw"], processed_file_name(cmds["raw"])
+        outputs = [raw_name, processed_name, Path(raw_name).with_suffix(".txt").name, Path(processed_name).with_suffix(".txt").name]
+        if not given_mesh_here:
+            outputs += [MESH_FILE, MATERIALS_FILE]
+        if not (folder / JOB_FILE).exists():                  # 前の実行のフォルダでなければ、利用者のファイルなので消さない
+            mine = [name for name in outputs if (folder / name).exists()]
+            if mine:
+                raise ValueError(f"{folder} には前の実行のものではないファイルがあります（{', '.join(mine)}）。別のフォルダを指定してください")
         folder.mkdir(parents=True, exist_ok=True)
         converted.geom.save_json(folder / GEOMETRY_FILE)
         job = {"kind": kind, "solverType": doc.analysis.type, "wave": doc.analysis.wave,
@@ -329,12 +372,17 @@ class Project:
                "files": {"mesh": MESH_FILE, "raw": cmds["raw"], "processed": cmds["processed"]},
                "createdAt": _dt.datetime.now().isoformat(timespec="seconds"), "generator": GENERATOR,
                "params": self.params}
+        # --out を使い回したときの前の実行のものを使わない（入力の検証の後なので、入力の誤りでは消えない）
+        for name in outputs:
+            (folder / name).unlink(missing_ok=True)
         if mesh_file is not None:
             import shutil
-            shutil.copy2(mesh_file, folder / MESH_FILE)
-            materials = Path(mesh_file).with_suffix(".materials.json")
-            if materials.exists():
-                shutil.copy2(materials, folder / "model.materials.json")
+            if not given_mesh_here:
+                shutil.copy2(mesh_file, folder / MESH_FILE)
+            if mesh_materials is None:
+                write_materials_json(converted.geom, folder / MESH_FILE)  # 材料は今の文書の値（メッシュの再利用でも）
+            elif not given_mesh_here:
+                shutil.copy2(mesh_materials, folder / MATERIALS_FILE)     # 文書に無いタグのメッシュは隣の材料で解く
             job["meshReused"] = str(mesh_file)
         (folder / JOB_FILE).write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
         label = folder.name if register else f"batch/{folder.name}"
@@ -494,14 +542,23 @@ def main(argv: Optional[list[str]] = None) -> int:
             if not args.quiet and console is not None:
                 print(message, file=console, flush=True)
 
+        for message in project.check()[1]:                  # 検証の警告（-q でも出す）
+            print(f"warning: {message}", file=sys.stderr)
         result = project.run(out_dir=args.out, register=args.register, log=log)
-    except (ValueError, KeyError, FileNotFoundError, RuntimeError) as exc:
+        for message in dict.fromkeys(result.warnings):      # ソルバの警告（ライブラリの警告はログだけ）
+            if str(message).startswith(SOLVER_WARNING_PREFIXES):
+                print(f"warning: {message}", file=sys.stderr)
+    except (ValueError, KeyError, OSError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     _print_result(result)
     if args.json_path:
-        Path(args.json_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json_path).write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            Path(args.json_path).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.json_path).write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as exc:
+            print(f"error: --json を書けませんでした（結果は保存済み）: {exc}", file=sys.stderr)
+            return 1
         print(f"json    : {args.json_path}")
     return 0
 

@@ -15,7 +15,7 @@
 
 マニフェスト（version 1）::
 
-    {"app": "AxiCavity-FEM", "version": 1, "generator": "AxiCavity-FEM v3 GUI 3.0.0", "saved": "…",
+    {"app": "AxiCavity-FEM", "version": 1, "generator": "AxiCavity-FEM v3 GUI 3.0.1", "saved": "…",
      "document": { … core.serialize の JSON（schemaVersion 1）… }, "activeResult": "0002-tm0-sw", "ui": { … }}
 
 - 結果の一覧はマニフェストに持たず、``results/`` を走査して作る（フォルダが正本。クラッシュしても結果を失わない）。
@@ -226,6 +226,7 @@ class ResultEntry:
     model_hash: Optional[str] = None
     summary: Optional[dict] = None  # result.json の summary（modes の一覧。完了時のみ）
     files: dict = field(default_factory=dict)   # {"raw": "model_SW_TM0.h5", "processed": …, "report": …}
+    warnings: list = field(default_factory=list)   # ソルバの警告（見逃したモードなど）
 
     def file(self, key: str) -> Optional[Path]:
         """result.json の files にある相対パスを絶対パスに（無ければ None）."""
@@ -237,6 +238,21 @@ class ResultEntry:
         """生の結果ファイル（h5）があるか."""
         raw = self.file("raw") or (self.dir / raw_file_name(self.kind))
         return raw.exists()
+
+
+# 結果パネルに出すソルバの警告（ほかのライブラリの警告は含めない。全文はログに出る）
+SOLVER_WARNING_PREFIXES = ("[TM0]", "[HOM]", "[ver2.1 HOM]", "[Material]")
+
+
+def record_solver_warnings(result_dir: str | Path, warnings: list) -> None:
+    """ソルバの警告を result.json に足す（プロジェクトの結果だけ. キャンセルや post の失敗でも残るように解いた直後に呼ぶ）."""
+    if not (Path(result_dir) / RESULT_META_FILE).exists():
+        return
+    meta = read_result_meta(result_dir)
+    known = list(meta.get("warnings") or [])
+    fresh = [w for w in dict.fromkeys(str(w) for w in warnings) if w.startswith(SOLVER_WARNING_PREFIXES) and w not in known]
+    if fresh:
+        write_result_meta(result_dir, warnings=known + fresh)
 
 
 def read_result_meta(result_dir: str | Path) -> dict:
@@ -288,6 +304,7 @@ def read_result(result_dir: str | Path) -> Optional[ResultEntry]:
         mesh_hash=meta.get("meshHash"),
         model_hash=meta.get("modelHash"),
         files=dict(files),
+        warnings=list(meta.get("warnings") or []),
     )
     if not entry.created_at:
         entry.created_at = _dt.datetime.fromtimestamp(

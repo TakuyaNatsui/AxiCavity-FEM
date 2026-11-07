@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_solve.add_argument("--materials", dest="materials_file", default=None,
                          help="material_table を含む JSON ファイル "
                               "(material_tag → {eps_r, mu_r})。省略時は "
-                              "<mesh>.materials.json を自動探索。TM0 のみ有効。")
+                              "<mesh>.materials.json を自動探索。")
 
     # --- post ---
     p_post = sub.add_parser("post", help="ポストプロセス（パラメータ計算）")

@@ -6,7 +6,8 @@
     1. AxiCavity-FEM.exe version        起動、PARDISO（MKL）、メッシャ（gmsh）、3D 表示（pyvista）の検出
     2. AxiCavity-FEM.exe selftest       GUI と同じ JobSession → QProcess → 自分自身の job（メッシャ → solve → post）
     3. AxiCavity-FEM.exe run <sample>   バッチ（メッシャ → solve → post）。円筒空洞 TM010 = 2.2949 GHz
-    4. AxiCavity-FEM.exe solve / post / report / info   コア CLI（.msh を gmsh 無しで読む）
+    4. AxiCavity-FEM.exe solve / post / report / info   コア CLI（.msh を gmsh 無しで読む）。進行波 TM0 と HOM の
+       post、目標壁損失の書き出しも
     5. AxiCavity-FEM.exe job mesh <dir> --events        GUI のメッシュジョブ（JSON イベント、プレビュー）
     6. 2 万自由度を超えるメッシュで PARDISO（MKL）の分解が使われる
     7. （--gui-seconds > 0）GUI を起動して数秒間落ちないこと
@@ -97,6 +98,22 @@ def main(argv: list[str] | None = None) -> int:
             r.stdout[-1500:] + r.stderr[-1500:])
     r = c.run("info", ["info", "-i", str(processed)])
     c.check("info", r.returncode == 0)
+
+    # 進行波 TM0 と HOM の post、目標壁損失の書き出し（EXE の中で遅延 import する経路も通る）
+    for label, solve_args, export_args in (
+            ("tm0-tw", ["--type", "tm0", "-p", "120"], ["--type", "tm0", "--phase", "120"]),
+            ("hom", ["--type", "hom", "--az-order", "1"], ["--type", "hom", "--n", "1"]),
+            ("hom-tw", ["--type", "hom", "--az-order", "1", "-p", "120"], ["--type", "hom", "--n", "1", "--phase", "120"])):
+        solver_type = solve_args[1]
+        raw, post = work / f"{label}.h5", work / f"{label}_processed.h5"
+        r = c.run(f"solve（{label}）", ["solve", *solve_args, "-m", str(msh), "--elem-order", "2", "--num-modes", "3",
+                                        "-o", str(raw)])
+        c.check(f"solve（{label}）", r.returncode == 0 and raw.exists(), r.stdout[-1500:] + r.stderr[-1500:])
+        r = c.run(f"post（{label}）", ["post", "--type", solver_type, "-i", str(raw), "-o", str(post), "--cond", "5.8e7"])
+        c.check(f"post（{label}）", r.returncode == 0 and post.exists(), r.stdout[-1500:] + r.stderr[-1500:])
+        r = c.run(f"export（{label}）", ["export", *export_args, "-i", str(post), "-o", str(work / f"{label}_field"),
+                                         "--shape", "area", "--scale-to-power", "1000"])
+        c.check(f"export --scale-to-power（{label}）", r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:])
 
     job = work / "meshjob"
     job.mkdir()

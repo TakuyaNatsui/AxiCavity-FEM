@@ -1,8 +1,10 @@
-"""計算コアが変わっていないことを確かめる（v3 は GUI だけを作り直し、計算コアは v2.3.0 と同じコードを使う）.
+"""計算コアが意図せず変わっていないことを確かめる（v3 は GUI を作り直し、計算コアは v2.3.0 のコードを引き継ぐ）.
 
 対象: ``src/axicavity_fem/{shared,physics_core,fem_tm0,fem_hom,reports,cli}/**/*.py`` と ``src/axicavity_fem/__init__.py``。
-``core_files.sha256`` は 3.0.0 公開時のコアの SHA-256（改行は LF に正規化。Windows の clone で CRLF になっても同じ値）。
-GitHub のタグ v2.3.0 との違いは ``__init__.py`` の ``__version__``（と docstring 1 行）だけ。
+``core_files.sha256`` は最後に意図してコアを変えたとき（CHANGELOG を参照）のコアの SHA-256
+（改行は LF に正規化。Windows の clone で CRLF になっても同じ値）。
+GitHub のタグ v2.3.0 との違いは ``__version__``（と docstring 1 行）、2 ファイルの BOM（``cli/cmd_solve.py``・
+``shared/gmsh_export_occ.py``）と、CHANGELOG の 3.0.1 以降に書いた意図的な修正だけ。
 
 コアを意図的に直したときは ``python tests/test_core_identical.py --update`` で一覧を作り直し、
 CHANGELOG に理由を書くこと（黙って変えない）。

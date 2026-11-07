@@ -44,7 +44,7 @@ from axicavity_fem.shared.multi_region_model import (
 
 # 空洞寸法・材料（PTFE 想定）
 # 注意: ε_r を大きくしすぎる（例 9.0）と、既知の制約「shift-invert の σ が
-# ε_r に追従しない」（README の Known constraints）により最低次モードを
+# ε_r に追従しない」（USER_MANUAL.md の「既知の制約」）により最低次モードを
 # 取り逃すことがある。本例は ε_r=2.1（PTFE）で TM010 が正しく得られる。
 A_MM = 50.0      # 半径 [mm]
 L_MM = 40.0      # 長さ [mm]

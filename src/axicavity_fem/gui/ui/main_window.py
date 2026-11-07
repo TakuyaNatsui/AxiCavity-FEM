@@ -198,9 +198,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.store.cursor_changed.connect(self._on_cursor)
         self.ribbon.currentChanged.connect(self._on_ribbon_tab)
         self.project.changed.connect(self._on_project_changed)
-        self.mesh.changed.connect(self._on_mesh_changed)
+        self.mesh.changed.connect(self._sync_analysis_actions)     # メッシュジョブ中は post / レポートも無効。中で _on_mesh_changed も呼ぶ
         self.analysis.changed.connect(self._sync_analysis_actions)
-        self.result_model.loaded.connect(self._sync_results_actions)
+        self.result_model.loaded.connect(self._sync_analysis_actions)   # 表示で post の対象が変わる。結果タブの同期も含む
         self.result_model.selection_changed.connect(self._sync_results_actions)
         self.result_model.options_changed.connect(self._sync_results_actions)
         self.session.log_appended.connect(lambda _j, line: self.log_message(line))
@@ -860,12 +860,13 @@ class MainWindow(QtWidgets.QMainWindow):
             node.addChild(item)
         return node
 
-    def _select_result(self, result_id: str) -> None:
-        """結果を表示中にする（結果タブを開き、結果ビューに場を描く）."""
+    def _select_result(self, result_id: str, show_tab: bool = True) -> None:
+        """結果を表示中にする（結果タブを開き、結果ビューに場を描く）. ``show_tab=False`` ならタブは変えない."""
         entry = self.project.result(result_id)
         if entry is None or entry.status == "running":
             return
-        self._show_tab("results")
+        if show_tab:
+            self._show_tab("results")
         if self.project.select_result(result_id):
             self.log_message(tr("project.selected", label=self._result_label(entry)))
         entry = self.project.result(result_id) or entry
@@ -1197,10 +1198,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refresh_tree()                     # 進捗のたびには作り直さない
 
     def _on_job_finished(self, job) -> None:
-        if job.kind == "analysis" and job.status == "done":
+        if job.kind == "analysis":
             entry = self.project.result(job.id)
             if entry is not None and entry.status == "done":
                 self._select_result(job.id)          # 完了した結果を表示する
+            elif entry is not None and entry.has_output:
+                # post だけ失敗や中止: 解析パネルのエラーを見せたまま、post 再実行の対象をこの結果にする
+                self._select_result(job.id, show_tab=False)
+        elif job.kind == "post" and job.status != "done" and self.result_model.entry is None:
+            # 何も表示せずに post 再実行して失敗: 次の post 再実行が別の結果に移らないよう、この結果を選ぶ
+            self._select_result(job.id.removesuffix("-post"), show_tab=False)
         elif job.kind == "export":
             self._on_export_field_finished(job)
         if job is self._export_job:
@@ -1213,7 +1220,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.critical(self, tr("mesh.exportTitle"),
                                                tr("file.exportError", message=job.error or ""))
             shutil.rmtree(job.dir, ignore_errors=True)
-        self._on_mesh_changed()
+        self._sync_analysis_actions()                # メッシュジョブ中に結果を選ぶと無効のまま残るので、終了時に合わせる
 
     def _geometry_for_export(self, title: str):
         try:
@@ -1240,7 +1247,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ensure_ascii=False), encoding="utf-8")
         self._export_job = self.session.submit("export_msh", job_dir, job_id="export_msh")
         self.log_message(tr("mesh.exporting", path=path))
-        self._on_mesh_changed()
+        self._sync_analysis_actions()
 
     def _on_export_geo(self) -> None:
         title = tr("ribbon.exportGeo")
@@ -1282,12 +1289,20 @@ class MainWindow(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     def _target_result(self):
-        """post / レポートの対象: 表示中の結果、無ければ一番新しい完了した結果."""
-        project = self.project
-        shown = self.result_model.entry
+        """post / レポートの対象: 表示中の結果。何も表示していなければ選択中の結果、それも無ければ一番新しい完了した結果.
+
+        外部の h5 を表示中は対象なし。post だけ失敗した結果は生の結果（raw）から直せるので対象にする
+        （表示中の結果に raw が無ければ対象なし。他の結果には移らない）。
+        """
+        project, model = self.project, self.result_model
+        if model.entry is None and model.path is not None:
+            return None
+        shown = model.entry
         entry = project.result(shown.id if shown is not None else project.active_result_id)
-        if entry is not None and entry.status == "done":
+        if entry is not None and (entry.status == "done" or entry.has_output):
             return entry
+        if shown is not None:
+            return None
         return next((e for e in project.results if e.status == "done"), None)
 
     def _sync_analysis_actions(self) -> None:

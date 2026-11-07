@@ -4,7 +4,7 @@ import axicavity_fem
 
 
 def test_version():
-    assert axicavity_fem.__version__ == "3.0.0"
+    assert axicavity_fem.__version__ == "3.0.1"
 
 
 def test_subpackage_imports():

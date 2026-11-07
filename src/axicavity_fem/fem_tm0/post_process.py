@@ -8,21 +8,17 @@ P_flow は規約セーフティ層 :mod:`axicavity_fem.physics_core.power_flow` 
 （``edge_line_integral_3point`` / ``tm0_p_flow_coefficient``）を用いて
 **z=z_min 断面のラインインテグラル**として計算する。
 
-ver2.1 制約（誘電体導入時）
----------------------------
-要素行列の組立 (``fem_tm0.assembly``) は要素ごとの ε_r をサポート済み。一方、
-ここの工学パラメータ計算は以下を真空 (ε_r=1, μ_r=1) 一様前提としている:
+誘電体
+------
+要素行列の組立 (``fem_tm0.assembly``) は要素ごとの ε_r をサポート済み。後処理は:
 
-- 蓄積エネルギー: ``U = π μ₀ Re(u^H M u) / 2``（H ベース）
-- 軸上 ``E_z`` 計算（``field_recon`` 経由）: ``E_z = -j/(ω ε₀) · (H_φ/r + ∂H_φ/∂r)``
-- 壁損失 ``P_loss``: 真空の表面インピーダンスを使用
-- ``P_flow`` 公式: 前置係数 ``-π/(ω ε₀)``（``power_flow.tm0_p_flow_coefficient``）
-
-誘電体を部分的に置いた場合、共振周波数 (= 固有値の平方根) の計算は正しいが、
-上記の派生量は **軸上または ports に誘電体が無い** ことを前提とする。ソルバ
-本体 (``solver.solve_tm0_*``) で ``material_table`` に ε_r ≠ 1 が含まれる
-場合、ポート断面 (z=z_min) と軸 (r=0) 上の要素が vacuum であるかを sanity
-check し、そうでなければ警告を出す。
+- 蓄積エネルギー: ``U = π μ₀ Re(u^H M u) / 2``（H ベースなので ε_r によらない）
+- 壁損失 ``P_loss``: 壁の H と表面インピーダンス（ε_r によらない）
+- ``P_flow``: 断面の各要素の寄与を ε_r で割る（``tm0_p_flow_zmin``）
+- 軸上 ``E_z``（``field_recon`` 経由）: ``E_z = -j/(ω ε₀ ε_r) · (H_φ/r + ∂H_φ/∂r)``。
+  規格化と電圧の積分に使う。軸を横切る界面では E_z が跳ぶ（D_z が連続）。
+  3.0.0 までは ε_r を渡していなかった（軸に誘電体があると V_eff・R/Q と、規格化を通して
+  U, P_loss, P_flow の絶対値が誤っていた。CHANGELOG）
 
 ver2.3: 誘電体損失 Q_diel（摂動法）
 -----------------------------------
@@ -40,6 +36,9 @@ ver2.3: 誘電体損失 Q_diel（摂動法）
 
 from __future__ import annotations
 
+import warnings
+from collections import Counter
+
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -48,7 +47,7 @@ from ..physics_core.power_flow import (
     edge_line_integral_3point,
     tm0_p_flow_coefficient,
 )
-from ..shared.boundary_groups import BoundaryClassification
+from ..shared.boundary_groups import PEC, BoundaryClassification, canonical_bc_name
 from ..shared.constants import C0, EPS0, MU0
 from ..shared.element_functions import (
     calculate_quadratic_nodal_shape_functions,
@@ -57,6 +56,9 @@ from ..shared.element_functions import (
 )
 from ..shared.quadrature import integration_points_triangle
 from .field_recon import TM0FieldReconstructor
+
+# np.trapz は NumPy 2.0 で np.trapezoid に改名され、2.4 で削除された（依存は numpy>=1.24）
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +187,12 @@ def tm0_p_flow_zmin(eigenvector, nodes, elements, element_order, omega,
 # ---------------------------------------------------------------------------
 # PEC 境界エッジの抽出
 # ---------------------------------------------------------------------------
-def _collect_pec_edges(elements, pec_nodes, element_order):
-    """PEC 節点集合に両端（+ 中点）が含まれる要素エッジを重複なく返す."""
+def _collect_pec_edges(elements, pec_nodes, element_order, physical_edges=None):
+    """PEC 節点集合に両端（+ 中点）が含まれる要素エッジを重複なく返す.
+
+    1 次要素は中点が無く、両端が PEC の内部の辺（鋭角の角の対角など）と区別できないので、
+    メッシュの線要素で判定する。線要素の情報が無い古い h5 では領域の外周の辺（要素 1 つだけに属する）を壁とする。
+    """
     pec_set = set(int(n) for n in pec_nodes)
     edge_indices = ([[0, 1, 3], [1, 2, 4], [2, 0, 5]] if element_order == 2
                     else [[0, 1], [1, 2], [2, 0]])
@@ -195,6 +201,22 @@ def _collect_pec_edges(elements, pec_nodes, element_order):
         for idxs in edge_indices:
             if all(n in pec_set for n in elem[idxs]):
                 edges.append(elem[idxs])
+    if element_order != 2:
+        if physical_edges is not None:
+            lines = set()
+            for name, pairs in physical_edges.items():
+                if canonical_bc_name(name) == PEC:
+                    lines.update(tuple(sorted(int(n) for n in pair)) for pair in pairs)
+            edges = [e for e in edges if tuple(sorted(int(n) for n in e)) in lines]
+        else:
+            uses = Counter(tuple(sorted(int(n) for n in elem[idxs])) for elem in elements for idxs in edge_indices)
+            outer = [e for e in edges if uses[tuple(sorted(int(n) for n in e))] == 1]
+            if len(outer) < len(edges):
+                warnings.warn(
+                    "[TM0] 線要素の情報が無い 1 次要素の h5 です（3.0.1 より前の solve）で、両端が PEC の内部の辺があります。領域の外周の辺だけを"
+                    "壁に数えるので、内部の PEC 線や要素 1 層の隙間があると壁損失と Q が正しくありません。解析を実行し直してください。",
+                    UserWarning, stacklevel=2)
+            edges = outer
     return sorted(set(tuple(sorted(e)) for e in edges))
 
 
@@ -351,9 +373,11 @@ def _process_one_phase(recon, nodes, elements, element_order, frequencies,
         freq_ghz = frequencies[m]
         omega = 2 * np.pi * freq_ghz * 1e9
 
-        # 軸上 Ez スキャンと規格化係数（生の固有ベクトルで計算）
+        # 軸上 Ez スキャンと規格化係数（生の固有ベクトルで計算）。
+        # 進行波は複素振幅で扱う（実部だと固有ベクトルの全体位相で U・V・R/Q が変わる）。
         _, ez_axial = recon.axial_ez_scan(eigenvectors[m], freq_ghz,
-                                           n_scan=len(z_scan))
+                                           n_scan=len(z_scan),
+                                           return_complex=is_traveling)
         max_abs = np.max(np.abs(ez_axial))
         norm_factor = 1.0 / max_abs if max_abs > 0 else 1.0
 
@@ -366,8 +390,8 @@ def _process_one_phase(recon, nodes, elements, element_order, frequencies,
 
         # 加速電圧
         ph_tt = np.exp(1j * omega * z_scan / (beta * C0))
-        v_eff = np.abs(np.trapz(ez_axial * norm_factor * ph_tt, dx=dz))
-        v_acc = np.abs(np.trapz(ez_axial * norm_factor, dx=dz))
+        v_eff = np.abs(_trapezoid(ez_axial * norm_factor * ph_tt, dx=dz))
+        v_acc = np.abs(_trapezoid(ez_axial * norm_factor, dx=dz))
         rq_eff = (v_eff ** 2) / (omega * U) if U > 0 else 0.0
         rq_apparent = (v_acc ** 2) / (omega * U) if U > 0 else 0.0
 
@@ -440,9 +464,8 @@ def compute_tm0_parameters(result, classification: BoundaryClassification,
         conductivity: 壁の導電率 [S/m]。
         beta: 粒子の β = v/c（走行時間係数）。
         n_scan: 軸上スキャン点数。
-        eps_r_per_element: (Ne,) 要素ごと比誘電率。P_flow の E_r 換算で
-            断面エッジを ε_r で割る（誘電体ポート対応）。``None`` で真空。
-            U は磁場 M ベースで ε_r 非依存、V_eff は軸上（真空）前提のため不変。
+        eps_r_per_element: (Ne,) 要素ごと比誘電率。軸上 E_z と P_flow の E_r の
+            換算で ε_r で割る。``None`` で真空。U は磁場 M ベースで ε_r 非依存。
         tan_delta_per_element: (Ne,) 要素ごと誘電正接 tanδ。指定すると摂動法で
             Q_diel / P_diel を計算し、``q_factor`` は合計 Q = ωU/(P_loss+P_diel)
             になる（``q_wall`` が従来の壁損失 Q を保持）。``None``/全ゼロで従来
@@ -460,9 +483,10 @@ def compute_tm0_parameters(result, classification: BoundaryClassification,
     cell_length = z_max - z_min
     z_scan = np.linspace(z_min, z_max, n_scan)
 
-    pec_edges = _collect_pec_edges(elements, classification.pec_nodes, order)
+    pec_edges = _collect_pec_edges(elements, classification.pec_nodes, order, getattr(result, "physical_edges", None))
 
-    recon = TM0FieldReconstructor(nodes, elements, order, result.analysis_type)
+    recon = TM0FieldReconstructor(nodes, elements, order, result.analysis_type,
+                                  eps_r_per_element=eps_r_per_element)
 
     out = TM0Parameters(
         analysis_type=result.analysis_type, conductivity=conductivity,

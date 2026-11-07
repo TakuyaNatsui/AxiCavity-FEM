@@ -26,6 +26,7 @@ from typing import Optional
 import numpy as np
 
 from ...shared.multi_region_model import MultiRegionGeometry
+from ..io.axiproj import record_solver_warnings
 from .commands import PROGRAM
 from .pipeline import (
     GEOMETRY_FILE,
@@ -110,7 +111,10 @@ def _run_cli(argv: list[str], log: LogFn) -> None:
     """ver2.3 の CLI をこのプロセスで実行する（終了コードが 0 でなければ例外）."""
     from ...cli.main import build_parser
 
-    args = build_parser().parse_args(argv)
+    try:
+        args = build_parser().parse_args(argv)
+    except SystemExit as exc:                    # argparse の誤りを結果のエラーにする（running のまま残さない）
+        raise RuntimeError(f"コマンドの引数が正しくありません: {' '.join(argv)}") from exc
     if args.command == "solve":
         from ...cli import cmd_solve as cmd
     elif args.command == "post":
@@ -177,14 +181,17 @@ def run_job(kind: str, job_dir: str | Path, progress: ProgressFn | None = None, 
                 timed("meshing", lambda: _ensure_mesh(job, log))
                 stage("solve", "固有値計算中...（この段階はキャンセルできません）")
                 timed("solve", lambda: _run_cli(list(argv["solve"]), log))
+                record_solver_warnings(".", warn_list)
                 if argv.get("post"):
                     stage("post", "パラメータ計算中...")
                     timed("post", lambda: _run_cli(list(argv["post"]), log))
+                    record_solver_warnings(".", warn_list)
                 else:
                     files["processed"] = None
             elif kind == "post":
                 stage("post", "パラメータ計算中...")
                 timed("post", lambda: _run_cli(list(argv["post"]), log))
+                record_solver_warnings(".", warn_list)
                 files["processed"] = argv["post"][argv["post"].index("-o") + 1]
             elif kind == "report":
                 stage("report", "レポート作成中...")
@@ -200,8 +207,12 @@ def run_job(kind: str, job_dir: str | Path, progress: ProgressFn | None = None, 
             summary: dict = {}
             if kind != "export":
                 stage("summary", "結果を読み込み中...")
-                source = files.get("processed") if files.get("processed") and Path(files["processed"]).exists() \
-                    else files.get("raw")
+                if kind == "report":     # レポートの入力から読む（post が失敗した結果の processed は読めないことがある）
+                    source = argv["report"][argv["report"].index("-i") + 1]
+                    files = {"report": files["report"]}
+                else:
+                    source = files.get("processed") if files.get("processed") and Path(files["processed"]).exists() \
+                        else files.get("raw")
                 summary = summarize_results(source) if source and Path(source).exists() else {}
             for key in ("raw", "processed"):
                 name = files.get(key)

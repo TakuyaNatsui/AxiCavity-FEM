@@ -164,3 +164,255 @@ def test_command_line_prints_progress(tmp_path, capfd):
     out = capfd.readouterr().out
     assert rc == 0, out
     assert "[done]" in out and "mode  0: f = 2.29485" in out
+
+
+def test_reused_out_folder_builds_a_new_mesh(tmp_path):
+    """同じ --out で形状を変えると別の周波数になる（3.0.0 は古い model.msh を再利用して同じ値を返した）."""
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder)
+    assert (folder / first.files["processed"]).exists()
+    project.set_params(a=40)
+    second = project.run(out_dir=folder, post=False)
+    assert second.summary["modes"][0]["f_GHz"] > first.summary["modes"][0]["f_GHz"] * 1.2      # TM010 ∝ 1/a
+    assert not (folder / first.files["processed"]).exists()                                    # 前の post の結果も残らない
+
+
+def test_given_mesh_is_still_used(tmp_path):
+    project = pillbox_project(tmp_path)
+    first = project.run(out_dir=tmp_path / "first", post=False)
+    mesh = tmp_path / "first" / "model.msh"
+    project.set_params(a=40)
+    again = project.run(out_dir=tmp_path / "again", post=False, mesh_file=mesh)
+    assert again.summary["modes"][0]["f_GHz"] == pytest.approx(first.summary["modes"][0]["f_GHz"], rel=1e-9)
+
+
+def test_invalid_input_does_not_remove_the_previous_results(tmp_path):
+    """入力の誤りは消す前に止まる."""
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder)
+    project.document.post.cond = -1.0
+    with pytest.raises(ValueError, match="導電率"):
+        project.run(out_dir=folder)
+    assert (folder / first.files["processed"]).exists() and (folder / "model.msh").exists()
+
+
+def test_text_summaries_of_the_previous_run_are_removed(tmp_path):
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder)
+    processed_txt = (folder / first.files["processed"]).with_suffix(".txt")
+    assert processed_txt.exists()
+    project.run(out_dir=folder, post=False)
+    assert not processed_txt.exists()
+
+
+def test_given_mesh_inside_the_out_folder_is_used_in_place(tmp_path):
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder, post=False)
+    project.set_params(a=40)
+    again = project.run(out_dir=folder, post=False, mesh_file=folder / "model.msh")
+    assert again.summary["modes"][0]["f_GHz"] == pytest.approx(first.summary["modes"][0]["f_GHz"], rel=1e-9)
+
+
+def _dielectric_project(tmp_path):
+    from axicavity_fem.gui.core.convert import sketch_profiles
+    from axicavity_fem.gui.core.document import RegionSetting
+
+    project = pillbox_project(tmp_path, "diel")
+    prof = sketch_profiles(project.document)[0]
+    project.document.regions = [RegionSetting(key=prof.id, anchor=prof.anchor, name="D", materialTag="d", epsR=2.0)]
+    return project, project.document.regions[0]
+
+
+def test_given_mesh_uses_the_current_materials(tmp_path):
+    """ε_r を変えて同じメッシュで解くと周波数が変わる（3.0.0 はメッシュの隣の古い材料で解いた）."""
+    project, region = _dielectric_project(tmp_path)
+    first = project.run(out_dir=tmp_path / "first", post=False)
+    region.epsR = 2.2                                              # 自動のシフト（1.50 GHz）より下にならない範囲
+    again = project.run(out_dir=tmp_path / "again", post=False, mesh_file=tmp_path / "first" / "model.msh")
+    assert again.summary["modes"][0]["f_GHz"] == pytest.approx(first.summary["modes"][0]["f_GHz"] * (2.0 / 2.2) ** 0.5, rel=1e-6)
+
+
+def test_negative_phase_runs_and_a_bad_argument_is_recorded_as_an_error(tmp_path):
+    """先頭が負の位相（-60,90）を argparse に通す. 引数の誤りで止まっても結果が running のまま残らない."""
+    project = pillbox_project(tmp_path)
+    project.document.analysis.wave = "traveling"
+    project.document.analysis.phases = "-60,90"
+    result = project.run(register=True, post=False)
+    assert result.summary["modes"]
+    from axicavity_fem.gui.jobs import analysis_pipeline
+    with pytest.raises(RuntimeError, match="引数"):
+        analysis_pipeline._run_cli(["solve", "--no-such-option"], lambda _m: None)
+
+
+def test_unwritable_json_gives_an_error_line(tmp_path, capfd):
+    rc = main([str(SAMPLES / "cylinder100mm.gmshproj"), "--modes", "1", "--no-post", "--out", str(tmp_path / "o"), "--lc", "12",
+               "--json", str(tmp_path)])
+    assert rc == 1
+    assert "--json" in capfd.readouterr().err
+
+
+def test_solver_warning_is_kept_when_post_fails_and_with_register(tmp_path, monkeypatch):
+    """警告は解いた直後に残す: post が失敗しても、register の結果を GUI で開いても見える."""
+    from axicavity_fem.cli import cmd_post
+    from axicavity_fem.gui.core.convert import sketch_profiles
+    from axicavity_fem.gui.core.document import RegionSetting
+
+    project = pillbox_project(tmp_path, "warn")
+    prof = sketch_profiles(project.document)[0]
+    project.document.regions = [RegionSetting(key=prof.id, anchor=prof.anchor, name="D", materialTag="d", epsR=4.0)]
+
+    def fail(args):
+        raise RuntimeError("post failed")
+
+    monkeypatch.setattr(cmd_post, "run", fail)
+    with pytest.raises(RuntimeError):
+        project.run(register=True)
+    assert any("見逃して" in w for w in scan_results(project.data_dir)[0].warnings)
+    monkeypatch.undo()
+    project.run(register=True, post=False)
+    assert any("見逃して" in w for w in scan_results(project.data_dir)[0].warnings)
+
+
+def test_mistyped_mesh_file_does_not_touch_the_folder(tmp_path):
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder)
+    before = sorted(p.name for p in folder.iterdir())
+    with pytest.raises(ValueError, match="mesh_file"):
+        project.run(out_dir=folder, mesh_file=tmp_path / "nope.msh")
+    broken = tmp_path / "broken.msh"
+    broken.write_text("not a mesh", encoding="utf-8")
+    with pytest.raises(ValueError, match="mesh_file"):
+        project.run(out_dir=folder, mesh_file=broken)
+    assert sorted(p.name for p in folder.iterdir()) == before
+    assert (folder / first.files["processed"]).exists()
+
+
+def test_user_files_in_a_folder_that_was_not_a_run_are_kept(tmp_path):
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "mine"
+    folder.mkdir()
+    (folder / "model.msh").write_text("mine", encoding="utf-8")
+    with pytest.raises(ValueError, match="model.msh"):
+        project.run(out_dir=folder)
+    assert (folder / "model.msh").read_text(encoding="utf-8") == "mine"
+
+
+def _foreign_mesh(tmp_path):
+    """材料タグ e（ε_r = 2）の外部メッシュと隣の材料ファイル（samples/diel_simple1 と同じ作り）."""
+    from axicavity_fem.gui.jobs.pipeline import write_materials_json
+    from axicavity_fem.shared.gmsh_export_occ import export_msh_multi_region
+    from axicavity_fem.shared.multi_region_model import MultiRegionGeometry
+
+    geom = MultiRegionGeometry.load_json(SAMPLES / "diel_simple1.gmshproj")
+    folder = tmp_path / "ext"
+    folder.mkdir()
+    msh = folder / "cav.msh"
+    export_msh_multi_region(geom, msh, mesh_order=2, verbose=0)
+    return msh, write_materials_json(geom, msh)
+
+
+def test_mesh_with_foreign_tags_uses_its_own_materials(tmp_path):
+    """文書に無いタグのメッシュは隣の材料で解く（真空で解いて +19% になった）."""
+    msh, sidecar = _foreign_mesh(tmp_path)
+    project = pillbox_project(tmp_path)
+    with_tags = project.run(out_dir=tmp_path / "out", post=False, mesh_file=msh)
+    direct = Project.from_document(project.document)
+    assert with_tags.summary["modes"][0]["f_GHz"] != pytest.approx(direct.run(out_dir=tmp_path / "doc", post=False).summary["modes"][0]["f_GHz"], rel=1e-3)
+    assert with_tags.summary["modes"][0]["f_GHz"] == pytest.approx(2.409, rel=5e-3)
+    sidecar.unlink()
+    with pytest.raises(ValueError, match="材料タグ"):
+        project.run(out_dir=tmp_path / "out2", post=False, mesh_file=msh)
+
+
+def test_check_includes_the_analysis_settings(tmp_path):
+    project = pillbox_project(tmp_path)
+    project.document.post.cond = -1.0
+    errors, _ = project.check()
+    assert any("導電率" in e for e in errors)
+
+
+def test_mesh_of_another_order_is_refused_before_touching_the_folder(tmp_path):
+    project = pillbox_project(tmp_path)
+    folder = tmp_path / "same"
+    first = project.run(out_dir=folder)
+    project.document.mesh.order = 1
+    with pytest.raises(ValueError, match="三角形要素"):
+        project.run(out_dir=folder, mesh_file=folder / "model.msh")
+    assert (folder / first.files["processed"]).exists()
+
+
+def test_user_outputs_are_kept_also_with_a_mesh_file(tmp_path):
+    project = pillbox_project(tmp_path)
+    source = project.run(out_dir=tmp_path / "source", post=False)
+    folder = tmp_path / "mine"
+    folder.mkdir()
+    (folder / "model_SW_TM0_processed.txt").write_text("mine", encoding="utf-8")
+    with pytest.raises(ValueError, match="前の実行のものではない"):
+        project.run(out_dir=folder, post=False, mesh_file=source.dir / "model.msh")
+    assert (folder / "model_SW_TM0_processed.txt").read_text(encoding="utf-8") == "mine"
+
+
+@pytest.mark.parametrize("field, value", [("cond", float("nan")), ("cond", float("inf"))])
+def test_not_a_number_is_refused(tmp_path, field, value):
+    project = pillbox_project(tmp_path)
+    setattr(project.document.post, field, value)
+    assert any("導電率" in e for e in project.check()[0])
+
+
+def test_command_line_prints_warnings_also_when_quiet(tmp_path, capfd):
+    rc = main([str(SAMPLES / "diel_simple2.gmshproj"), "--modes", "1", "--no-post", "--out", str(tmp_path / "o"), "-q"])
+    assert rc == 0
+    assert "見逃して" in capfd.readouterr().err
+
+
+def test_mesh_with_a_region_named_after_a_boundary_is_accepted(tmp_path):
+    """2D の Physical が PEC のメッシュは金属の領域で、文書に無い材料タグではない."""
+    from test_hom_periodic_wall import _metal_region_mesh
+
+    msh = _metal_region_mesh(tmp_path / "metal.msh", 2)
+    project = pillbox_project(tmp_path)
+    assert project.run(out_dir=tmp_path / "out", post=False, mesh_file=msh).summary["modes"]
+
+
+def test_mesh_without_regions_is_refused_for_a_dielectric_document(tmp_path):
+    """2D の Physical が無いメッシュでは材料を当てはめられない（黙って真空で解いて 2 倍の周波数になった）."""
+    import gmsh
+
+    gmsh.initialize()
+    try:
+        gmsh.option.setNumber("General.Verbosity", 0)
+        gmsh.model.add("m")
+        geo = gmsh.model.geo
+        p = [geo.addPoint(z, r, 0.0, 5e-3) for z, r in ((0.0, 0.0), (0.1, 0.0), (0.1, 0.05), (0.0, 0.05))]
+        lines = [geo.addLine(p[i], p[(i + 1) % 4]) for i in range(4)]
+        geo.addPlaneSurface([geo.addCurveLoop(lines)])
+        geo.synchronize()
+        gmsh.model.setPhysicalName(1, gmsh.model.addPhysicalGroup(1, lines[1:]), "PEC")
+        gmsh.option.setNumber("Mesh.ElementOrder", 2)
+        gmsh.option.setNumber("Mesh.SaveAll", 1)
+        gmsh.model.mesh.generate(2)
+        gmsh.option.setNumber("Mesh.MshFileVersion", 4.1)
+        msh = tmp_path / "plain.msh"
+        gmsh.write(str(msh))
+    finally:
+        gmsh.finalize()
+    project, _region = _dielectric_project(tmp_path)
+    with pytest.raises(ValueError, match="領域の情報"):
+        project.run(out_dir=tmp_path / "out", post=False, mesh_file=msh)
+
+
+def test_command_line_prints_only_solver_warnings(tmp_path, capfd, monkeypatch):
+    """ライブラリの警告（ResourceWarning など）は解析の結果とは関係がないので標準エラーに出さない."""
+    def fake_run(self, **kwargs):
+        return RunResult(dir=tmp_path, kind="tm0-sw", summary={}, files={}, elapsed={},
+                         warnings=["unclosed file <x>", "[TM0] 低いモード", "[TM0] 低いモード"], registered=False)
+
+    monkeypatch.setattr(Project, "run", fake_run)
+    assert main([str(SAMPLES / "cylinder100mm.gmshproj"), "--no-post", "--out", str(tmp_path / "o"), "-q"]) == 0
+    err = capfd.readouterr().err
+    assert err.count("[TM0] 低いモード") == 1 and "unclosed" not in err

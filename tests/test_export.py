@@ -149,3 +149,14 @@ def test_export_via_cli(tmp_path):
                    "--npts", "20", "--format", "h5"])
     assert rc == 0
     assert (tmp_path / "out.h5").exists()
+
+
+def test_rounded_phase_finds_the_stored_one():
+    """表示用に丸めた位相（99.9）でも保存された 99.89999999999999 を選ぶ（GUI の書き出しが渡す値）. 離れた位相は誤り."""
+    from axicavity_fem.reports.export_fields import _select_modeset
+
+    data = {"results_by_n": {0: {"traveling": {99.89999999999999: "a", 133.2: "b"}}}}
+    assert _select_modeset(data, "tm0", 0, 99.9)[0] == "a"
+    assert _select_modeset(data, "tm0", 0, 99.89999999999999)[3] == 99.89999999999999
+    with pytest.raises(ValueError):
+        _select_modeset(data, "tm0", 0, 100.0)

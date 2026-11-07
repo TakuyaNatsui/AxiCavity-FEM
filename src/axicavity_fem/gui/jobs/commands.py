@@ -8,6 +8,7 @@ ver2.3 の wx GUI（``main_frame.OnRunSolver`` / ``OnRunPost`` / ``OnBtnCreateRe
 
 from __future__ import annotations
 
+import math
 import shlex
 from typing import Optional
 
@@ -38,22 +39,32 @@ def solve_argv(doc: AxiDocument, mesh_file: str = MESH_FILE, output: Optional[st
     if a.type == "hom":
         argv += ["--az-order"] + (a.azOrders.split() or ["0"])
     if a.wave == "traveling":
-        argv += ["-p", a.phases.strip()]
+        phases = a.phases.strip()
+        argv += [f"--phase={phases}"] if phases.startswith("-") else ["-p", phases]    # 負で始まる値を argparse に通す
     return argv
 
 
-def post_argv(doc: AxiDocument, raw: str, output: Optional[str] = None) -> list[str]:
-    a = doc.analysis
-    argv = ["post", "--type", a.type, "-i", raw, "-o", output or processed_file_name(raw),
+def solver_type_of(kind: str) -> str:
+    """結果の種類（``tm0-tw`` など）→ ソルバーの種類."""
+    return "hom" if kind.startswith("hom") else "tm0"
+
+
+def post_argv(doc: AxiDocument, raw: str, output: Optional[str] = None,
+              solver_type: Optional[str] = None) -> list[str]:
+    """``solver_type`` を省くと解析設定の種類。既存の結果には結果の種類を渡す（パネルの種類とは限らない）."""
+    solver_type = solver_type or doc.analysis.type
+    argv = ["post", "--type", solver_type, "-i", raw, "-o", output or processed_file_name(raw),
             "--cond", f"{doc.post.cond:g}"]
-    if a.type == "tm0":
+    if solver_type == "tm0":
         argv += ["--beta", f"{doc.post.beta:g}"]
     return argv
 
 
-def report_argv(doc: AxiDocument, h5: str, output_dir: Optional[str] = None) -> list[str]:
+def report_argv(doc: AxiDocument, h5: str, output_dir: Optional[str] = None,
+                solver_type: Optional[str] = None) -> list[str]:
+    """``solver_type`` の意味は :func:`post_argv` と同じ."""
     r = doc.report
-    argv = ["report", "--type", doc.analysis.type, "-i", h5, "-o", output_dir or report_dir_name(h5)]
+    argv = ["report", "--type", solver_type or doc.analysis.type, "-i", h5, "-o", output_dir or report_dir_name(h5)]
     if r.animate:
         argv.append("--animate")
     if r.timePhase:
@@ -127,7 +138,7 @@ def validate_analysis(doc: AxiDocument) -> list[str]:
     errors: list[str] = []
     if int(a.numModes) < 1:
         errors.append("モード数は 1 以上にしてください")
-    if a.targetFreqGHz is not None and a.targetFreqGHz <= 0:
+    if a.targetFreqGHz is not None and not (math.isfinite(a.targetFreqGHz) and a.targetFreqGHz > 0):
         errors.append("予測周波数は正の値にしてください（GHz）")
     if a.type == "hom":
         orders = a.azOrders.split()
@@ -138,11 +149,11 @@ def validate_analysis(doc: AxiDocument) -> list[str]:
             phases = parse_phase_list(a.phases.strip())
         except Exception:  # noqa: BLE001
             phases = []
-        if not phases or not a.phases.strip():
+        if not phases or not a.phases.strip() or not all(math.isfinite(p) for p in phases):
             errors.append("進行波の位相を入力してください（例: 120 / 60,90 / 0:180:20）")
         elif all(abs(p) < 1e-12 for p in phases):
             errors.append("進行波の位相が 0 です（定在波になります）")
-    if doc.post.cond <= 0:
+    if not (math.isfinite(doc.post.cond) and doc.post.cond > 0):
         errors.append("導電率は正の値にしてください [S/m]")
     if a.type == "tm0" and not (0 < doc.post.beta <= 1.0):
         errors.append("β = v/c は 0 < β ≤ 1 にしてください")

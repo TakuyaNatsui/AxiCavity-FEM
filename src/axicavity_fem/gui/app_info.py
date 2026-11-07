@@ -93,7 +93,7 @@ def viz3d_status() -> str:
 
         return f"pyvista {pyvista.__version__} / VTK {_version('vtk')}"
     except Exception as exc:  # noqa: BLE001
-        return f"なし（{type(exc).__name__}。pip install \"axicavity-fem[viz3d]\"）"
+        return f"なし（{type(exc).__name__}: {exc}。pip install \"axicavity-fem[viz3d]\"）"
 
 
 def collect(run_mesher: bool = True) -> dict[str, str]:

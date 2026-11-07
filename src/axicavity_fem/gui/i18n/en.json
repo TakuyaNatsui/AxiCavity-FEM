@@ -1108,9 +1108,9 @@
       "ribbon": {
         "run": "Confirm shape, materials and boundary conditions, then run solve (→ post) in a child process",
         "cancel": "Stop at the next stage boundary (not during the eigenvalue solve)",
-        "forceStop": "Kill the child process immediately (no result is kept)",
-        "post": "Re-run post on the active result with the current conductivity and β",
-        "report": "Create an HTML report (figures and tables) from the active result",
+        "forceStop": "Kill the child process immediately (the output of the running stage is lost)",
+        "post": "Re-run post on the displayed result (if none, the selected or newest finished one) with the current conductivity and β",
+        "report": "Create an HTML report (figures and tables) from the displayed result (if none, the selected or newest finished one)",
         "openReport": "Open the report (index.html) in the browser"
       }
     },
@@ -1204,7 +1204,7 @@
     "phasesHint": "Single 120, list 60,90, scan 0:180:20",
     "numModes": "Number of modes",
     "target": "Predicted frequency [GHz]",
-    "targetAuto": "auto (lowest modes)",
+    "targetAuto": "auto (near a shift set from r_max)",
     "targetHint": "Sets the shift-invert shift to this frequency so modes near it are returned",
     "elemOrder": "Element order",
     "elemOrderValue": "order {{order}} (same as the mesh tab)",
@@ -1231,7 +1231,7 @@
     "cannotRun": "Cannot run:\n{{message}}",
     "noResult": "No result to post-process or report. Run an analysis first.",
     "noReport": "No report yet (use Create report)",
-    "forceStopConfirm": "Kill the child process? No result will be kept.",
+    "forceStopConfirm": "Kill the child process? The output of the running stage is lost (a finished solve is kept).",
     "submitted": "Analysis submitted: {{id}}",
     "postSubmitted": "Post submitted: {{id}}",
     "reportSubmitted": "Report submitted: {{id}}"
@@ -1272,6 +1272,7 @@
     "modeItem": "Mode {{index}}: {{f}} GHz",
     "tableTitle": "Mode table (selected n / phase)",
     "noPost": "No post values (Q, R/Q …). Run 'Re-run post' on the Analysis tab",
+    "noPostExternal": "No post values (Q, R/Q …). For an .h5 file outside the project, run post on the command line (manual section 13)",
     "optionsTitle": "Display",
     "hColor": "Hθ as color",
     "hColorHom": "Eθ / Hθ as color",
@@ -1334,7 +1335,7 @@
     "azOrders": "azimuthal orders n = {{orders}}",
     "modes": "{{count}} modes, element order {{order}}",
     "target": "near the predicted frequency {{f}} GHz",
-    "targetAuto": "from the lowest modes (no predicted frequency)",
+    "targetAuto": "near a shift set from r_max (no predicted frequency)",
     "post": "post: conductivity {{cond}} S/m, β = {{beta}}",
     "noPost": "no post (solve only)",
     "region": "{{name}} [{{tag}}]  εr = {{eps}}",

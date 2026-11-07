@@ -43,7 +43,11 @@ def _select_modeset(data, solver_type, n, phase):
     if phase is None:
         phase = sorted(trav.keys())[0]
     if phase not in trav:
-        raise ValueError(f"位相 {phase} がありません（利用可能: {sorted(trav)}）")
+        # 表示用に丸めた位相（99.89999999999999 に対する 99.9 など）も受け付ける
+        nearest = min(trav, key=lambda value: abs(value - phase))
+        if abs(nearest - phase) > 1e-3:
+            raise ValueError(f"位相 {phase} がありません（利用可能: {sorted(trav)}）")
+        phase = nearest
     return trav[phase], "traveling", n, phase
 
 
@@ -200,7 +204,8 @@ def export_fields(input_path, output, *, solver_type=None, mode=0, n=None,
         npts: line/axis の点数。
         time_phase: 瞬時値の時間位相 [度]。
         scale: 場の倍率。
-        scale_to_power: 目標壁損失 [W]。post_process の P_loss から倍率を算出。
+        scale_to_power: 目標壁損失 [W]。書き出す場の壁損失がこの値になる倍率を
+            post_process の結果から算出（``scale`` より優先）。
         instant: 進行波で瞬時実数値を出力（TM0）。
         fmt: "h5"/"txt"/"both"。
 
@@ -226,6 +231,10 @@ def export_fields(input_path, output, *, solver_type=None, mode=0, n=None,
         p_loss = _lookup_p_loss(data_in, n, analysis_type, phase, mode)
         if not p_loss or p_loss <= 0:
             raise ValueError("--scale-to-power には post 済み (P_loss>0) が必要です。")
+        if solver_type == "tm0":
+            p_loss = _tm0_p_loss_of_stored_vector(
+                p_loss, _lookup_p_loss(data_in, n, analysis_type, phase, mode, key="U_stored"),
+                data_in["mesh"], modeset["eigenvectors"][mode])
         scale = float(np.sqrt(scale_to_power / p_loss))
 
     field_at, fields = _build_field_fn(
@@ -271,7 +280,27 @@ def export_fields(input_path, output, *, solver_type=None, mode=0, n=None,
     return data
 
 
-def _lookup_p_loss(data_in, n, analysis_type, phase, mode):
+def _tm0_p_loss_of_stored_vector(p_loss, u_stored, mesh, eigenvector):
+    """post の P_loss を、h5 に保存された固有ベクトル（export が場を作る元）の壁損失に直す.
+
+    TM0 の post は軸上ピーク E_z = 1 V/m に規格化して U・P_loss を計算するが、固有ベクトルは solve の値のまま
+    保存される。U と P_loss は同じ規格化なので P_loss/U は規格化によらない（3.0.0 以前の進行波の post でも）。
+    これに保存された固有ベクトルの U（post_process と同じ式）を掛ける。
+    """
+    from ..fem_tm0.assembly import assemble_global_matrices
+    from ..shared.constants import MU0
+    from ..shared.mesh_loader import MeshData
+
+    if not u_stored or u_stored <= 0:
+        raise ValueError("--scale-to-power には post 済み (U_stored>0) が必要です。")
+    _, m_global = assemble_global_matrices(MeshData(
+        nodes=mesh["vertices"], elements=mesh["simplices"], element_order=mesh["elem_order"]))
+    u = np.asarray(eigenvector)
+    u_of_vector = np.pi * MU0 * np.real(np.vdot(u, m_global @ u)) / 2.0
+    return p_loss * float(u_of_vector) / u_stored
+
+
+def _lookup_p_loss(data_in, n, analysis_type, phase, mode, key="P_loss"):
     pp = data_in.get("post_process")
     if not pp or n not in pp:
         return None
@@ -282,4 +311,4 @@ def _lookup_p_loss(data_in, n, analysis_type, phase, mode):
         modes = rec.get("traveling", {}).get(phase)
     if not modes or mode >= len(modes):
         return None
-    return float(modes[mode].get("P_loss", 0.0))
+    return float(modes[mode].get(key, 0.0))

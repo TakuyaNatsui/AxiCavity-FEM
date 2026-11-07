@@ -1,8 +1,8 @@
-"""アプリのアイコン（src/axicavity_fem/gui/ui/app_icon.svg）から Windows の .ico を作る.
+"""アプリのアイコン（src/axicavity_fem/gui/ui/app_icon.png・app_icon_small.png）から Windows の .ico を作る.
 
     python packaging/make_ico.py <out.ico>
 
-各サイズ（16〜256 px）を Qt の SVG レンダラで PNG にし、PNG 圧縮のエントリを並べた ICO を書く（Windows Vista 以降で読める）。
+各サイズ（16〜256 px）をアプリと同じ画像（32 px 以下は線を減らした小さい版）で PNG にし、PNG 圧縮のエントリを並べた ICO を書く（Windows Vista 以降で読める）。
 """
 
 from __future__ import annotations
@@ -18,9 +18,11 @@ SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
 def png_bytes(size: int) -> bytes:
     from PySide6 import QtCore
 
-    from axicavity_fem.gui.ui.icon_set import APP_ICON_FILE, render_svg
+    from axicavity_fem.gui.ui.icon_set import render_app_icon
 
-    image = render_svg(APP_ICON_FILE, size)
+    image = render_app_icon(size)
+    if image.isNull():
+        raise FileNotFoundError("アプリのアイコンの画像が無い（tools/make_app_icon.py で作る）")
     buffer = QtCore.QBuffer()
     buffer.open(QtCore.QIODevice.WriteOnly)
     image.save(buffer, "PNG")

@@ -118,6 +118,22 @@ def test_project_lifecycle(app, tmp_path):
     assert count_entities(store2.active_sketch()) == count_entities(store.active_sketch())
     assert store2.document.analysis.type == "hom"
     assert project2.result_relation(project2.results[0]) == "settings"   # hom-tw に変えた後に保存したので
+    # post だけ失敗した結果（raw あり）も選択を戻す。raw も無ければ戻さない
+    failed = project.result("0001-tm0-sw")
+    project.finish_result(failed.dir, "error", error="post failed")
+    raw = failed.dir / axiproj.raw_file_name(failed.kind)
+    had_raw = raw.exists()
+    raw.write_bytes(raw.read_bytes() if had_raw else b"")
+    _store3, project3 = _env()
+    project3.open(path)
+    assert project3.active_result_id == "0001-tm0-sw"
+    raw.unlink()
+    _store4, project4 = _env()
+    project4.open(path)
+    assert project4.active_result_id is None
+    if had_raw:
+        raw.write_bytes(b"")
+    project.finish_result(failed.dir, "done")
 
     # 名前を付けて保存: データフォルダ（結果・command.log）ごと複製し、元はそのまま
     project.log_command("axicavity-fem solve --type tm0 -m model.msh")

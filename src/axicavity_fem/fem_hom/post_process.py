@@ -28,6 +28,7 @@ from ..shared.element_functions import (
     grad_quadratic_nodal_shape_functions,
 )
 from ..shared.quadrature import integration_points_triangle
+from .boundary import periodic_tolerance
 from .field_recon import split_hom_dofs
 
 
@@ -79,7 +80,9 @@ def calc_p_flow_hom(simplices, vertices, edge_vectors, edge_vectors_lt,
                     element_order, omega, n_mode, mu0=MU0):
     """z=z_min 断面のポインティング z 成分積分から電力流 P_flow を計算する.
 
-    ``P = (π/(ωμ₀)) ∫ {Im[E_r·curl_Ezr*]·r − n·Re[E_φ·E_z*] + Im[E_φ·(∂E_φ/∂z)*]·r} dr``
+    ``P = (π/(ωμ₀)) ∫ {Im[E_r·curl_Ezr*]·r − n·Im[E_θ·E_z*] + Im[E_θ·(∂E_θ/∂z)*]·r} dr``
+
+    E_θ はコアの変数で、物理量 E_φ の 1/j 倍（E_φ = jE_θ。要素行列が実数になる取り方。``field_recon`` と同じ）。
 
     Args:
         simplices, vertices, edge_index_map: メッシュ。
@@ -92,7 +95,7 @@ def calc_p_flow_hom(simplices, vertices, edge_vectors, edge_vectors_lt,
     """
     z_coords = vertices[:, 0]
     z_min = np.min(z_coords)
-    z_tol = (np.max(z_coords) - z_min) * 1e-6
+    z_tol = periodic_tolerance(np.asarray(vertices), edge_index_map)      # solve と同じ（座標のずれで面の要素を落とさない）
     z_min_set = set(np.where(np.abs(z_coords - z_min) < z_tol)[0])
 
     if element_order == 2:
@@ -165,7 +168,7 @@ def calc_p_flow_hom(simplices, vertices, edge_vectors, edge_vectors_lt,
                 E_phi = dEphi_dz = 0.0
 
             term1 = np.imag(E_r * np.conj(curl_Ezr)) * r
-            term2 = -n_mode * np.real(E_phi * np.conj(E_z))
+            term2 = -n_mode * np.imag(E_phi * np.conj(E_z))
             term3 = np.imag(E_phi * np.conj(dEphi_dz)) * r
             return term1 + term2 + term3
 
@@ -318,9 +321,10 @@ def _wall_loss(simplices, vertices, edge_index_map, element_order, n,
             r_s = max(r_e, 1e-9)
             drEt_dr = Et_p + r_s * dEt_dr
 
-            curlE_r = 1j * (n / r_s) * Ez_p - dEt_dz
+            # コアの変数では r, z 成分の 2 項は同相（field_recon の H と同じ）
+            curlE_r = (n / r_s) * Ez_p - dEt_dz
             curlE_t = curl_Ezr
-            curlE_z = ((1.0 / r_s) * drEt_dr - 1j * (n / r_s) * Er_p
+            curlE_z = ((1.0 / r_s) * drEt_dr - (n / r_s) * Er_p
                        if r_e > 1e-9 else 0.0)
 
             if n == 0:
@@ -377,7 +381,7 @@ def compute_hom_parameters(result, conductivity: float = 5.8e7,
 
     for phase_deg, modeset in phases.items():
         is_traveling = result.analysis_type != "standing"
-        u_coeff = 0.5 if is_traveling else 1.0
+        u_coeff = 0.5   # U = ½ε₀∫|E|²dV（ピーク振幅に対する全エネルギー。定在波も進行波も同じ）
         mode_params = []
         for m in range(len(modeset.frequencies)):
             freq_ghz = float(modeset.frequencies[m])

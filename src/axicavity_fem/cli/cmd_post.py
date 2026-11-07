@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 import shutil
+import warnings
+
+import h5py
 
 from ..shared.constants import C0
-from ..shared.hdf5_io import append_post_process, read_results
+from ..shared.hdf5_io import append_post_process, is_v2, read_results
 
 
 def _tm0_params_to_attrs(mp):
@@ -46,7 +49,7 @@ def _post_tm0(data, cond, beta):
                   element_order=mesh["elem_order"],
                   physical_groups=mesh["physical_groups"])
     # M は TM0 では ε_r 非依存（K に 1/ε_r が乗る）なので真空 M でよい。
-    # P_flow の E_r 換算でのみ ε_r が必要。
+    # ε_r は電場の再構成（軸上の E_z と E_r。規格化、V、R/Q、P_flow に効く）に要る。
     _, M_global = assemble_global_matrices(md)
     eps_r_per_element = mesh.get("eps_r_per_element")  # 誘電体（None で真空）
     tan_delta_per_element = mesh.get("tan_delta_per_element")  # None で無損失
@@ -62,7 +65,7 @@ def _post_tm0(data, cond, beta):
             element_order=mesh["elem_order"], analysis_type="standing",
             physical_groups=mesh["physical_groups"], r0_nodes=r0,
             M_global=M_global, frequencies=ms["frequencies"],
-            eigenvectors=ms["eigenvectors"])
+            eigenvectors=ms["eigenvectors"], physical_edges=mesh.get("physical_edges"))
         params = compute_tm0_parameters(
             result, classification, cond, beta,
             eps_r_per_element=eps_r_per_element,
@@ -77,7 +80,7 @@ def _post_tm0(data, cond, beta):
             nodes=mesh["vertices"], elements=mesh["simplices"],
             element_order=mesh["elem_order"], analysis_type="traveling",
             physical_groups=mesh["physical_groups"], r0_nodes=r0,
-            M_global=M_global, phase_results=phase_results)
+            M_global=M_global, phase_results=phase_results, physical_edges=mesh.get("physical_edges"))
         params = compute_tm0_parameters(
             result, classification, cond, beta,
             eps_r_per_element=eps_r_per_element,
@@ -102,7 +105,7 @@ def _post_hom(data, cond):
     for n, rec in data["results_by_n"].items():
         _, _, pec_loss = compute_hom_boundary(
             mesh["vertices"], mesh["simplices"], edge_index_map,
-            mesh["physical_groups"], n)
+            mesh["physical_groups"], n, mesh.get("physical_edges"))
 
         def _make_result(analysis_type, normal=None, periodic=None):
             return HOMResult(
@@ -137,17 +140,51 @@ def _post_hom(data, cond):
     return post_by_n
 
 
+def _output_problem(target: str) -> str | None:
+    """出力先に書けない理由を返す（計算の前に確かめる）. 問題なければ None."""
+    if os.path.isdir(target):
+        return f"出力先がフォルダです: {target}"
+    if os.path.splitext(target)[1].lower() == ".txt":       # 同じ名前にサマリの .txt を書くので拒否する
+        return f"出力先が .txt です。.h5 を指定してください: {target}"
+    if not os.path.isdir(os.path.dirname(os.path.abspath(target))):
+        return f"出力先のフォルダがありません: {target}"
+    if os.path.exists(target) and not os.access(target, os.W_OK):
+        return f"出力先が読み取り専用です: {target}"
+    return None
+
+
+def _write_output(input_file: str, target: str, post_by_n: dict) -> None:
+    """入力の写しに post を追記して、できあがってから出力と置き換える.
+
+    途中で止まっても出力はそのまま残る（入力と出力が同じファイルでも）。入力の属性は写さない。
+    """
+    temporary = target + ".tmp"
+    try:
+        shutil.copyfile(input_file, temporary)
+        append_post_process(temporary, post_by_n)
+        os.replace(temporary, target)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
+
 def run(args) -> int:
     """post サブコマンドの本体."""
     if not os.path.exists(args.input_file):
         print(f"エラー: 入力ファイルが見つかりません: {args.input_file}")
         return 1
+    if not h5py.is_hdf5(args.input_file):
+        print(f"エラー: 入力が HDF5 ファイルではありません: {args.input_file}")
+        return 1
+    if not is_v2(args.input_file):
+        print(f"エラー: ver1 形式のファイルは post できません。solve し直してください: {args.input_file}")
+        return 1
 
-    target = args.input_file
-    if args.output_file and os.path.abspath(args.output_file) != \
-            os.path.abspath(args.input_file):
-        shutil.copy2(args.input_file, args.output_file)
-        target = args.output_file
+    target = args.output_file or args.input_file
+    problem = _output_problem(target)
+    if problem:
+        print(f"エラー: {problem}")
+        return 1
 
     data = read_results(args.input_file)
     solver_type = data["solver_type"] or args.type
@@ -159,14 +196,21 @@ def run(args) -> int:
     else:
         post_by_n = _post_hom(data, args.cond)
 
-    append_post_process(target, post_by_n)
+    try:
+        _write_output(args.input_file, target, post_by_n)
+    except OSError as exc:                  # 他のプログラムが出力を開いている、など（出力はそのまま残る）
+        print(f"エラー: 出力に書き込めませんでした（前の内容は残っています）: {target}: {exc}")
+        return 1
 
     # 計算結果の簡易テキスト出力 (.h5 → .txt)。周波数に加え Q 値なども書き出す。
     from .summary_txt import write_post_summary
     params = dict(data.get("parameters") or {})
     params.setdefault("solver_type", solver_type)
-    txt = write_post_summary(target, params, post_by_n)
-    print(f"[post] テキストサマリを保存: {txt}")
+    try:
+        txt = write_post_summary(target, params, post_by_n)
+        print(f"[post] テキストサマリを保存: {txt}")
+    except OSError as exc:                  # h5 はもう新しい値なので失敗にしない（表計算ソフトが開いている、など）
+        warnings.warn(f"テキストサマリを書けませんでした（.h5 は保存済み）: {exc}", stacklevel=2)
 
     for n, rec in post_by_n.items():
         if "standing" in rec:

@@ -233,3 +233,16 @@ def test_gif_dialog(qtbot):
     qtbot.addWidget(dialog)
     dialog.frames_spin.setValue(8)
     assert dialog.params() == {"n_frames": 8, "fps": 6, "output_path": "a.gif"}
+
+
+def test_solver_warnings_are_shown_with_the_result(env, tmp_path, qtbot):
+    """見逃したモードの警告は結果パネルに出る（ログのドックだけでは気づかない）. 別の結果では消える."""
+    store, project, model, view, panel = env
+    entry = _entry(tmp_path, TM0_SW)
+    entry.warnings = ["[TM0] 低いモードを見逃しています"]
+    assert model.load_entry(entry)
+    qtbot.waitUntil(lambda: view.last_title != "", timeout=30_000)
+    qtbot.waitUntil(lambda: panel.solver_warning_label.isVisible(), timeout=5_000)
+    assert "見逃して" in panel.solver_warning_label.text()
+    assert model.load_file(TM0_SW)
+    qtbot.waitUntil(lambda: not panel.solver_warning_label.isVisible(), timeout=5_000)

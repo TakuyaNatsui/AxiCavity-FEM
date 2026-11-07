@@ -39,6 +39,9 @@ def _assert_same(a, b):
     assert a.physical_groups.keys() == b.physical_groups.keys()
     for name in a.physical_groups:
         assert np.array_equal(a.physical_groups[name], b.physical_groups[name]), name
+    assert set(a.physical_edges) == set(b.physical_edges)
+    for name in a.physical_edges:
+        assert np.array_equal(a.physical_edges[name], b.physical_edges[name]), name
     if a.element_region_ids is None:
         assert b.element_region_ids is None and b.region_names is None
     else:

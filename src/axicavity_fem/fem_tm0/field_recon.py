@@ -144,16 +144,22 @@ class TM0FieldReconstructor:
                 "E_abs": np.sqrt(np.real(Ez_c) ** 2 + np.real(Er_c) ** 2)}
 
     # ------------------------------------------------------------------
-    def axial_ez_scan(self, eigenvector, frequency_ghz, n_scan=2000):
+    def axial_ez_scan(self, eigenvector, frequency_ghz, n_scan=2000,
+                      return_complex=False):
         """軸上 (r=0) の E_z を z_min→z_max でスキャンする.
 
+        Args:
+            return_complex: True で複素振幅を返す。進行波の固有ベクトルは全体位相が
+                不定（ARPACK の初期ベクトルで決まる）なので、工学量には複素振幅を使う。
+
         Returns:
-            ``(z_scan, ez_axial)``。``ez_axial`` は ver1 互換で各点の実部（瞬時値）。
+            ``(z_scan, ez_axial)``。``ez_axial`` は既定で ver1 互換の各点の実部（瞬時値）。
         """
         z_min, z_max = np.min(self.nodes[:, 0]), np.max(self.nodes[:, 0])
         z_scan = np.linspace(z_min, z_max, n_scan)
         ez_axial = np.array([
-            (self.calculate_fields(eigenvector, frequency_ghz, zp, 0.0) or
+            (self.calculate_fields(eigenvector, frequency_ghz, zp, 0.0,
+                                   return_complex=return_complex) or
              {"Ez": 0.0})["Ez"]
             for zp in z_scan
         ])

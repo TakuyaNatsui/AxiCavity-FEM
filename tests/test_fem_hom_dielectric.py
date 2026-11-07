@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 import scipy.linalg
+from scipy.special import jn_zeros, jnp_zeros
 
 from axicavity_fem.fem_hom.assembly import assemble_global_matrices
 from axicavity_fem.fem_hom.boundary import (
@@ -22,9 +23,12 @@ from axicavity_fem.fem_hom.boundary import (
     get_pec_dof_indices_1st,
     get_pec_dof_indices_2nd,
 )
-from axicavity_fem.fem_hom.solver import solve_hom_standing
+from axicavity_fem.fem_hom.post_process import compute_hom_parameters
+from axicavity_fem.fem_hom.solver import solve_hom_standing, solve_hom_traveling
+from axicavity_fem.shared.constants import C0, EPS0, MU0
 from axicavity_fem.shared.gmsh_export_occ import export_msh_multi_region
 from axicavity_fem.shared.material_resolver import (
+    build_eps_r_per_element,
     build_material_table_from_geometry,
 )
 from axicavity_fem.shared.mesh_loader import load_mesh_hom
@@ -202,3 +206,117 @@ def test_stored_energy_scales_with_eps_r(tmp_path):
     # None と eps_r=1 一様が一致
     U_one = _stored_energy(*args, eps_r_per_element=np.ones(num_elements))
     assert U_one == pytest.approx(U_vac, rel=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# 6) 誘電体を入れた導波管セル: 後処理は ε_r を含めて正しい（solve の警告の文の根拠）
+#    媒質中の k_d = √ε_r·ω/c, η_d = η/√ε_r として真空の式と同じ:
+#      k_d² = k_c² + β², v_g/c = β/(√ε_r·k_d), Q = ω/(2αv_g)
+#      TM: α = R_s·k_d/(R·η_d·β), TE: α = R_s/(R·k_d·η_d·β)·(k_c² + k_d²n²/(x² − n²))
+# ---------------------------------------------------------------------------
+_L_MM, _R_MM, _SIGMA, _THETA = 35.0, 40.0, 5.8e7, 120.0
+_EPS_R = 4.0
+
+
+def _cell_geom():
+    pts = [(0.0, 0.0), (_L_MM, 0.0), (_L_MM, _R_MM), (0.0, _R_MM)]
+    segs = [Segment(id=0, type="line", point_indices=[0, 1], bc_name="None"),
+            Segment(id=1, type="line", point_indices=[1, 2], bc_name="None"),
+            Segment(id=2, type="line", point_indices=[2, 3], bc_name="PEC"),
+            Segment(id=3, type="line", point_indices=[3, 0], bc_name="None")]
+    region = Region(id=0, name="Cell", outer_loop_id=0, material_tag="diel", eps_r=_EPS_R)
+    return MultiRegionGeometry(points=pts, segments=segs, loops=[Loop(id=0, segment_ids=[0, 1, 2, 3])],
+                               regions=[region], unit="mm", mesh_size=2.0)
+
+
+def _layered_cell():
+    """r < 20 mm は真空、r > 20 mm は誘電体（ポート断面に誘電体があり、軸は真空）."""
+    mid = _R_MM / 2.0
+    pts = [(0.0, 0.0), (_L_MM, 0.0), (_L_MM, mid), (0.0, mid), (_L_MM, _R_MM), (0.0, _R_MM)]
+    segs = [Segment(id=0, type="line", point_indices=[0, 1], bc_name="None"),
+            Segment(id=1, type="line", point_indices=[1, 2], bc_name="None"),
+            Segment(id=2, type="line", point_indices=[2, 3], bc_name="None"),
+            Segment(id=3, type="line", point_indices=[3, 0], bc_name="None"),
+            Segment(id=4, type="line", point_indices=[2, 4], bc_name="None"),
+            Segment(id=5, type="line", point_indices=[4, 5], bc_name="PEC"),
+            Segment(id=6, type="line", point_indices=[5, 3], bc_name="None")]
+    regions = [Region(id=0, name="Core", outer_loop_id=0, material_tag=VACUUM_TAG),
+               Region(id=1, name="Layer", outer_loop_id=1, material_tag="diel", eps_r=_EPS_R)]
+    return MultiRegionGeometry(points=pts, segments=segs,
+                               loops=[Loop(id=0, segment_ids=[0, 1, 2, 3]), Loop(id=1, segment_ids=[4, 5, 6, 2])],
+                               regions=regions, unit="mm", mesh_size=2.0)
+
+
+def _solve_traveling(tmp_path, geom, n, phases, **kw):
+    path = tmp_path / f"cell_{n}.msh"
+    export_msh_multi_region(geom, path, mesh_order=2, verbose=0)
+    mesh = load_mesh_hom(str(path), n, 2)
+    table = build_material_table_from_geometry(geom)
+    with pytest.warns(UserWarning, match="シフト値"):
+        res = solve_hom_traveling(mesh, num_modes=4, phase_shifts=phases, material_table=table, **kw)
+    return res, compute_hom_parameters(res, conductivity=_SIGMA, eps_r_per_element=build_eps_r_per_element(mesh, table))
+
+
+@pytest.mark.parametrize("kind, n", [("TM", 0), ("TM", 1), ("TE", 1), ("TE", 2)], ids=["TM01", "TM11", "TE11", "TE21"])
+def test_filled_waveguide_cell_matches_analytic(tmp_path, kind, n):
+    R, L = _R_MM * 1e-3, _L_MM * 1e-3
+    x = float(jn_zeros(n, 1)[0] if kind == "TM" else jnp_zeros(n, 1)[0])
+    kc, beta = x / R, np.radians(_THETA) / L
+    k_d = np.hypot(kc, beta)
+    sqrt_eps = np.sqrt(_EPS_R)
+    omega = k_d * C0 / sqrt_eps
+    f_ghz = omega / (2e9 * np.pi)
+    rs = np.sqrt(omega * MU0 / (2.0 * _SIGMA))
+    eta_d = np.sqrt(MU0 / EPS0) / sqrt_eps
+    if kind == "TM":
+        alpha = rs * k_d / (R * eta_d * beta)
+    else:
+        alpha = rs / (R * k_d * eta_d * beta) * (kc ** 2 + k_d ** 2 * n ** 2 / (x ** 2 - n ** 2))
+    vg_c = beta / (sqrt_eps * k_d)
+
+    res, params = _solve_traveling(tmp_path, _cell_geom(), n, (_THETA,), target_freq_ghz=f_ghz * 1.01)
+    freqs = res.periodic[_THETA].frequencies
+    mode = params.per_phase[_THETA][int(np.argmin(np.abs(freqs - f_ghz)))]
+    assert mode.frequency_ghz == pytest.approx(f_ghz, rel=1e-3)
+    assert mode.v_group_c == pytest.approx(vg_c, rel=0.005, abs=0)
+    assert mode.attenuation == pytest.approx(alpha, rel=0.005, abs=0)
+    assert mode.q_factor == pytest.approx(omega / (2.0 * alpha * vg_c * C0), rel=0.005, abs=0)
+
+
+@pytest.mark.parametrize("n", [0, 1, 2])
+def test_group_velocity_with_dielectric_at_the_port(tmp_path, n):
+    """ポート断面に誘電体: 解析解は無いので v_g = L dω/dθ（固有周波数だけ）と比べる."""
+    res, params = _solve_traveling(tmp_path, _layered_cell(), n, (_THETA - 1.0, _THETA, _THETA + 1.0))
+    low, high = res.periodic[_THETA - 1.0].frequencies, res.periodic[_THETA + 1.0].frequencies
+    center = res.periodic[_THETA].frequencies
+    # 番号で差分を取るので、θ = 120° の近くで交差するモードの組は除く（n = 2 に 1 組ある）
+    gaps = np.abs(center[:, None] - center[None, :]) + np.eye(len(center))
+    isolated = gaps.min(axis=1) > 3.0 * np.abs(high - low).max()
+    assert isolated.sum() >= 2
+    fd = (high - low) * 2e9 * np.pi * (_L_MM * 1e-3) / np.radians(2.0) / C0
+    vg = np.array([mode.v_group_c for mode in params.per_phase[_THETA]])
+    assert vg[isolated] == pytest.approx(fd[isolated], abs=2e-3)
+
+
+def test_cli_post_matches_the_api_with_dielectric(tmp_path):
+    """CLI の post も ε_r を渡す: h5 の U が API（解析解で確かめた）と同じで、ε_r なしとは違う."""
+    from axicavity_fem.cli.main import cli_main
+    from axicavity_fem.gui.jobs.pipeline import write_materials_json
+    from axicavity_fem.shared.hdf5_io import read_results
+
+    geom = _pillbox_geom(eps_r=4.0, material_tag="diel")
+    msh, raw, proc = tmp_path / "m.msh", tmp_path / "raw.h5", tmp_path / "proc.h5"
+    export_msh_multi_region(geom, msh, mesh_order=2, verbose=0)
+    write_materials_json(geom, msh)
+    assert cli_main(["solve", "--type", "hom", "-m", str(msh), "--elem-order", "2", "--num-modes", "1", "--az-order", "1",
+                     "-o", str(raw)]) == 0
+    assert cli_main(["post", "--type", "hom", "-i", str(raw), "-o", str(proc)]) == 0
+    stored = read_results(proc)["post_process"][1]["standing"][0]["U_stored"]
+
+    mesh = load_mesh_hom(str(msh), 1, 2)
+    table = build_material_table_from_geometry(geom)
+    res = solve_hom_standing(mesh, num_modes=1, material_table=table)
+    with_eps = compute_hom_parameters(res, eps_r_per_element=build_eps_r_per_element(mesh, table)).per_phase[0.0][0]
+    no_eps = compute_hom_parameters(res).per_phase[0.0][0]
+    assert stored == pytest.approx(with_eps.stored_energy, rel=1e-6, abs=0)
+    assert abs(with_eps.stored_energy / no_eps.stored_energy - 1.0) > 0.5

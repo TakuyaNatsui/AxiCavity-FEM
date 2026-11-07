@@ -90,6 +90,22 @@ def test_run_post_report_and_cancel(env, tmp_path, qtbot):
     qtbot.waitUntil(lambda: analysis.report_path(project.results[0]) is not None, timeout=10_000)
     assert analysis.report_path(project.results[0]).name == "index.html"
 
+    # 解析パネルが HOM でも、TM0 の結果の post とレポートは結果の種類で動く（β も効く）
+    store.set_analysis(type="hom")
+    store.set_post(beta=0.5)
+    entry = project.results[0]
+    assert analysis.run_post(entry)
+    qtbot.waitUntil(lambda: not analysis.running, timeout=120_000)
+    assert analysis.job.status == "done", analysis.job.error
+    argv = json.loads((entry.dir / "job.json").read_text(encoding="utf-8"))["argv"]["post"]
+    assert argv[:3] == ["post", "--type", "tm0"] and argv[-2:] == ["--beta", "0.5"]
+    qtbot.waitUntil(lambda: project.results[0].status == "done", timeout=10_000)
+    assert analysis.run_report(project.results[0])
+    qtbot.waitUntil(lambda: not analysis.running, timeout=300_000)
+    assert analysis.job.status == "done", analysis.job.error
+    qtbot.waitUntil(lambda: project.results[0].status == "done", timeout=10_000)
+    store.set_analysis(type="tm0")
+
     # 強制停止: 実行中のジョブを kill → cancelled として残る
     store.set_analysis(numModes=4)
     assert analysis.run()
@@ -100,3 +116,54 @@ def test_run_post_report_and_cancel(env, tmp_path, qtbot):
     qtbot.waitUntil(lambda: project.results[0].status == "cancelled", timeout=10_000)
     assert project.results[0].id == "0002-tm0-sw" and project.running_dir is None
     session.wait()
+
+
+def test_reused_mesh_solves_with_the_current_materials(env, tmp_path, qtbot):
+    """メッシュのハッシュに材料は入らないので ε_r を変えてもメッシュは再利用される. 材料は今の値で解く（3.0.0 は +22%、警告なし）."""
+    from axicavity_fem.gui.core.convert import sketch_profiles
+    from axicavity_fem.gui.core.document import RegionSetting
+
+    store, controller, project, session, mesh, analysis = env
+    draw_box(store, controller, 0, 0, 100, 50)
+    store.set_mesh(size=10.0)
+    store.set_analysis(numModes=1)
+    prof = sketch_profiles(store.document)[0]
+    store.document.regions = [RegionSetting(key=prof.id, anchor=prof.anchor, name="D", materialTag="d", epsR=2.0)]
+    project.save_as(tmp_path / "run.axiproj")
+    assert mesh.generate(project.prepare_mesh())
+    qtbot.waitUntil(lambda: not mesh.running, timeout=180_000)
+    freqs = []
+    for eps_r in (2.0, 2.2):
+        store.document.regions[0].epsR = eps_r
+        assert mesh.state() == "current"
+        assert analysis.run(), analysis.last_error
+        qtbot.waitUntil(lambda: not analysis.running, timeout=300_000)
+        assert analysis.job.status == "done", analysis.job.error
+        qtbot.waitUntil(lambda: project.results[0].status == "done", timeout=10_000)
+        entry = project.results[0]
+        assert json.loads((entry.dir / "job.json").read_text(encoding="utf-8"))["meshReused"]
+        freqs.append(entry.summary["modes"][0]["f_GHz"])
+    assert freqs[1] == pytest.approx(freqs[0] * (2.0 / 2.2) ** 0.5, rel=1e-6)
+
+
+def test_solver_warnings_are_kept_with_the_result(env, tmp_path, qtbot):
+    """見逃したモードの警告（ε_r = 4 で TM010 が自動のシフトより下）は結果に残り、開き直しても見える. ほかのライブラリの警告は入れない."""
+    from axicavity_fem.gui.core.convert import sketch_profiles
+    from axicavity_fem.gui.core.document import RegionSetting
+    from axicavity_fem.gui.io.axiproj import record_solver_warnings
+
+    store, controller, project, session, mesh, analysis = env
+    draw_box(store, controller, 0, 0, 100, 50)
+    store.set_mesh(size=10.0)
+    store.set_analysis(numModes=1, runPost=False)
+    prof = sketch_profiles(store.document)[0]
+    store.document.regions = [RegionSetting(key=prof.id, anchor=prof.anchor, name="D", materialTag="d", epsR=4.0)]
+    project.save_as(tmp_path / "run.axiproj")
+    assert analysis.run(), analysis.last_error
+    qtbot.waitUntil(lambda: not analysis.running, timeout=300_000)
+    qtbot.waitUntil(lambda: project.results[0].status == "done", timeout=10_000)
+    entry = project.results[0]
+    assert len(entry.warnings) == 1 and "見逃して" in entry.warnings[0]
+    record_solver_warnings(entry.dir, entry.warnings + ["other library warning", "[HOM] 別の警告", "[HOM] 別の警告"])
+    project.refresh_results()
+    assert [w[:5] for w in project.results[0].warnings] == ["[TM0]", "[HOM]"]

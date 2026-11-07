@@ -33,6 +33,11 @@ BC_NONE = "None"
 _ALIASES = {"Dirichlet": PEC}
 
 
+def canonical_bc_name(raw_name: str) -> str:
+    """グループ名を正規 BC 名へ（エイリアスの解決のみ。未知の名前はそのまま）."""
+    return _ALIASES.get(raw_name, raw_name)
+
+
 @dataclass
 class BoundaryClassification:
     """物理グループを正規 BC 名ごとの節点集合に整理した結果.

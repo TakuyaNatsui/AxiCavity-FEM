@@ -84,6 +84,11 @@ def write_results(path, *, solver_type, mesh, results_by_n, parameters=None,
         pgrp = mg.create_group("physical_groups")
         for name, idx in (mesh.get("physical_groups") or {}).items():
             pgrp.create_dataset(name, data=np.asarray(idx))
+        # 3.0.1: 1D の PhysicalGroup の線要素（1 次要素の壁の判定に使う。無ければ古い h5）
+        if mesh.get("physical_edges") is not None:
+            egrp = mg.create_group("physical_edges")
+            for name, pairs in mesh["physical_edges"].items():
+                egrp.create_dataset(name, data=np.asarray(pairs, dtype=int).reshape(-1, 2))
         # ver2.1: 要素ごと比誘電率（誘電体メッシュのみ）
         if mesh.get("eps_r_per_element") is not None:
             mg.create_dataset("eps_r_per_element",
@@ -211,6 +216,8 @@ def _read_mesh(mg) -> dict:
     if "physical_groups" in mg:
         for name in mg["physical_groups"]:
             mesh["physical_groups"][name] = mg["physical_groups"][name][:]
+    mesh["physical_edges"] = ({name: mg["physical_edges"][name][:] for name in mg["physical_edges"]}
+                              if "physical_edges" in mg else None)
     if mesh["edge_map_keys"] is not None:
         mesh["edge_index_map"] = {
             tuple(int(x) for x in mesh["edge_map_keys"][i]):

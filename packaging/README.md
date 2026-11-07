@@ -86,7 +86,7 @@ THIRD_PARTY_NOTICES は Nuitka のレポートのモジュールから配布物�
 | `AxiCavity-FEM.py` | Nuitka の main スクリプト（同梱物の場所を環境変数で教えて `axicavity_fem.gui.launcher.main` を呼ぶ） |
 | `build_exe.py` | アイコン → メッシャ → Nuitka → 同梱物 → zip |
 | `build_mesher.py` | `mesher/` の組み立て（埋め込み Python・gmsh・`../mesher/axicavity_mesh.py`・コアの 2 モジュール・ソース） |
-| `make_ico.py` | `src/axicavity_fem/gui/ui/app_icon.svg` → `app.ico` |
+| `make_ico.py` | `src/axicavity_fem/gui/ui/app_icon.png`・`app_icon_small.png` → `app.ico` |
 | `third_party_notices.py` | Nuitka のレポートから THIRD_PARTY_NOTICES.txt を作る |
 | `smoke_test_exe.py` | 出来上がった dist の動作確認 |
 | `README_dist.txt` | 配布物の `README.txt`（日本語・英語） |

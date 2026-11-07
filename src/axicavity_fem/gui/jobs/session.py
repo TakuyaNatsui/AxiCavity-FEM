@@ -99,7 +99,7 @@ class JobSession(QtCore.QObject):
     def cancel(self, force: bool = False) -> bool:
         """実行中のジョブにキャンセルを要求する（段階の切れ目で止まる）.
 
-        ``force=True`` は子プロセスを直ちに kill する（固有値計算の途中でも止まる。結果は残らない）。
+        ``force=True`` は子プロセスを直ちに kill する（固有値計算の途中でも止まる。その段階の出力は残らず、完了した段階の結果は残る）。
         """
         job = self.current
         if job is None or job.finished:
@@ -314,5 +314,6 @@ class JobSession(QtCore.QObject):
             runner.request_cancel(job.dir)
         if proc is not None and proc.state() != QtCore.QProcess.NotRunning:
             if not proc.waitForFinished(3_000):
+                self._force_stopped = True         # 結果に「クラッシュ」と記録しない
                 proc.kill()
                 proc.waitForFinished(3_000)

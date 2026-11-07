@@ -46,6 +46,10 @@ class ResultsPanel(ScrollPanel):
         self.relation_label = label("", WARNING)
         self.relation_label.hide()
         body.addWidget(self.relation_label)
+        self.solver_warning_label = label("", WARNING)
+        self.solver_warning_label.setWordWrap(True)
+        self.solver_warning_label.hide()
+        body.addWidget(self.solver_warning_label)
         self.error_label = label("", ERROR)
         self.error_label.hide()
         body.addWidget(self.error_label)
@@ -215,6 +219,9 @@ class ResultsPanel(ScrollPanel):
         data = model.data
         self._refresh_job()
         self._refresh_relation()
+        solver_warnings = list(model.entry.warnings) if model.entry is not None else []
+        self.solver_warning_label.setText("\n".join(solver_warnings))
+        self.solver_warning_label.setVisible(bool(solver_warnings))
         if model.entry is not None:
             name = model.entry.label or tr(f"project.kind.{model.entry.kind}")
             self.source_label.setText(tr("results.sourceProject", number=model.entry.number, name=name,
@@ -302,7 +309,13 @@ class ResultsPanel(ScrollPanel):
         if rows:
             table.selectRow(min(sel.mode, len(rows) - 1))
         self.table_hint.setVisible(not columns)
+        self.table_hint.setText(self._no_post_text())
         self.table.setMinimumHeight(min(360, 30 + 24 * max(1, len(rows))))
+
+    def _no_post_text(self) -> str:
+        """プロジェクトの外の h5 には「post 再実行」が効かないので、案内を変える."""
+        external = self.model.entry is None and self.model.path is not None
+        return tr("results.noPostExternal" if external else "results.noPost")
 
     def retranslate(self) -> None:
         self.title.setText(f"<b>{tr('results.title')}</b>")
@@ -312,7 +325,7 @@ class ResultsPanel(ScrollPanel):
         self.mode_label.setText(tr("results.mode"))
         self.time_phase_label.setText(tr("results.timePhase"))
         self.table_box.setTitle(tr("results.tableTitle"))
-        self.table_hint.setText(tr("results.noPost"))
+        self.table_hint.setText(self._no_post_text())
         self.options_box.setTitle(tr("results.optionsTitle"))
         self.lines_check.setText(tr("results.eLines"))
         self.levels_label.setText(tr("results.levels"))

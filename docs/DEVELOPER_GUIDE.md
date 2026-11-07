@@ -1,7 +1,8 @@
-# AxiCavity-FEM 開発者ガイド（バージョン 3: 計算コアは 2.3.0 と同じ、GUI は PySide6）
+# AxiCavity-FEM 開発者ガイド（バージョン 3: 計算コアは 2.3.0 を引き継ぐ、GUI は PySide6）
 
 > **バージョン 3 について**: 本ガイドの計算コア（§1〜§5、§7）の記述はバージョン 2 系からそのまま有効（コアは
-> 2.3.0 と同じコードで、違いは `__version__` だけ。`tests/test_core_identical.py` が SHA-256 の一覧で監視）。
+> 2.3.0 を引き継ぐ。意図的な変更は `__version__` と CHANGELOG に書いた修正（3.0.1 の修正は §4.2、§4.3、§4.5、§4.8〜§4.11）だけ。
+> `tests/test_core_identical.py` が SHA-256 の一覧で監視）。
 > GUI は wxPython から PySide6 のリボン UI に置き換わった（§2 gui/、§4.7、§6.3〜6.5）。Windows 版（EXE）は §10。
 
 > **目的**: 新しいセッション（または新しい開発者）が、コードの構成・役割・規約・落とし穴を
@@ -13,10 +14,11 @@
 このプロジェクトは、軸対称空洞共振モードの 2 次元有限要素法（FEM）解析ツールである。
 ver1（GitHub のタグ `v1.0`）の機能を保ちつつ、共通基盤の抽出・パッケージ化・統一 CLI/GUI 化を行ったのが ver2
 （本パッケージ `axicavity_fem`）、GUI を作り直したのが ver3。ver1 と数値が一致することは ver2 の開発中に確認した
-（その比較テストは ver1 のコードが要るので公開リポジトリには含めない）。
+（その比較テストは ver1 のコードが要るので公開リポジトリには含めない）。3.0.1 で後処理の誤りを直したので、進行波 TM0 の U・P・V・R/Q と
+HOM の U・Q・P・v_g・α、軸に誘電体がある TM0 の U・P・V・R/Q は ver1 / ver2 と一致しない。周波数・固有モードは、周期面に壁が達するセルと外壁 M-short のセルの HOM 進行波 n ≥ 1、z 方向に領域を分けたセルと約 40 µm より細かいメッシュの HOM 進行波、90° より小さい角や要素 1 層の隙間がある形状と軸の途中に接する壁の HOM を除いて一致し、定在波 TM0 の値は軸に誘電体がなく 2 次要素なら一致する。
 
 - **TM0 モード**: 軸対称（方位角次数 m=0）。未知数は H_φ スカラー（節点 DOF）。
-- **HOM（High Order Mode）**: 方位角次数 n≥0。未知数は電界 E（Nédélec エッジ DOF + rE_θ 節点 DOF）。
+- **HOM（High Order Mode）**: 方位角次数 n≥0。未知数は電界 E（Nédélec エッジ DOF + rE_θ 節点 DOF。E_θ = E_φ/j。要素行列が実数になる取り方）。
 - 定在波（standing）と進行波（traveling, 周期境界）の両方を扱う。
 
 ---
@@ -113,7 +115,7 @@ shared                    ← 数学・I/O・規約の共通基盤
 | `assembly.py` | `assemble_global_matrices(mesh)` → (K,M) CSR。 |
 | `boundary.py` | `find_nodes_on_r0_boundary`, `build_dirichlet_nodes`（M-short ∪ 軸 r=0）, `identify_periodic_boundaries`, `create_transformation_matrix`（位相は pbc_phase 経由）, `apply_bc_transformation`。 |
 | `solver.py` | `TM0Result`, `solve_tm0_standing`, `solve_tm0_traveling`, `solve_tm0`（ファイル→解）。 |
-| `field_recon.py` | `TM0FieldReconstructor`（H_φ→E_z/E_r 再構成、点/節点/軸スキャン）。 |
+| `field_recon.py` | `TM0FieldReconstructor`（H_φ→E_z/E_r 再構成、点/節点/軸スキャン。既定は実部、`return_complex=True` で複素振幅）。 |
 | `post_process.py` | `compute_tm0_parameters`（U・P_loss・Q・V_eff・R/Q・群速度）, `tm0_p_flow_zmin`, `calculate_boundary_integral_quadratic`, `TM0Parameters`/`TM0ModeParameters`。 |
 
 ### fem_hom/ — HOM ソルバ（DOF: Nédélec エッジ + rE_θ 節点）
@@ -151,7 +153,7 @@ shared                    ← 数学・I/O・規約の共通基盤
 
 | ファイル | 役割 |
 |---|---|
-| `app/__init__.py`, `__main__.py` | `main()`（entry point `axicavity-fem-gui`、`python -m axicavity_fem.gui`）。引数に `.axiproj` / `.gmshproj` / `.af` / `.h5`。アプリ名とアイコン（`ui/app_icon.svg`）。 |
+| `app/__init__.py`, `__main__.py` | `main()`（entry point `axicavity-fem-gui`、`python -m axicavity_fem.gui`）。引数に `.axiproj` / `.gmshproj` / `.af` / `.h5`。アプリ名とアイコン（`ui/app_icon.png`・`app_icon_small.png`。`tools/make_app_icon.py` がサンプルの計算結果から描く）。 |
 | `launcher.py` | 入口を 1 つにまとめたもの（EXE の main）: GUI / コア CLI（`solve` …）/ `run`（バッチ）/ `job`（GUI の子プロセス）/ `version` / `selftest`。§10。 |
 | `frozen.py`, `app_info.py` | EXE（Nuitka）かどうかと EXE のパス（`GetModuleFileNameW`）、版と同梱物（PARDISO・メッシュ生成の方式・3D 表示）の情報。 |
 | `mshlite/{reader,gmsh_api}.py` | `.msh`（4.1 / 2.2、ASCII / binary）の純 Python リーダと、gmsh の読込 API の互換モジュール（EXE で `sys.modules["gmsh"]` に差し込む）。§10。 |
@@ -218,20 +220,30 @@ shared                    ← 数学・I/O・規約の共通基盤
 ### 4.2 進行波 PBC 位相
 - 必ず `physics_core.pbc_phase` 経由。規約は **`x_max = e^{-jθ}·x_min`**（時間規約 e^{+jωt}）。
   直接 `exp(±1j*θ)` を書かないこと（ver1 で符号バグの実績あり）。
+- HOM の節点ペア（`find_periodic_boundary_pairs`）は、周期面以外の PEC 壁に接する節点（外壁の角、アイリスの先端、同軸の内導体）を外して
+  PEC に委ねる。壁かどうかは `compute_hom_boundary` が決めた壁の辺で判定する（`_wall_edge_test`。両端が壁の節点でも内部の辺は壁でない。2 次要素は中点節点で分かる。1 次要素はメッシュの線要素 `physical_edges`（h5 の `/mesh/physical_edges`）で判定し、それが無い古い h5 だけ領域の外周の辺にする）。Dirichlet と壁損失を同時に直すこと（片方だけだと Q が悪化する）。壁が片方の周期面だけに触れるとき、もう片方の対の節点は `wall_images` として固定する（自由のまま残すと周波数が低く出る）。
+  エッジの対の符号は r 方向の向きで決める。三角形の向きを使わないこと（GUI の領域は向きが逆になることがある）。許容は `periodic_tolerance`（周期面の一番短い辺の 1e-2 倍、上限 1e-5 m）。壁でない外周の辺の節点が許容の 5 倍以内に外れていれば止め、一端だけ面の上で中点が許容の内側の辺（周期面の辺と取り違える）も止める（対にならない節点が自由に残るのを防ぐ）。壁の点や内部の節点は面に近くてもよい。`post` の P_flow も同じ許容。
+  3.0.0 までは r_max だけを外していた。内部の固定辺が無いセルでは、周期面のラベルは周波数に影響しない（1e-7 以下。軸の端の節点は端面が E-short なら固定、それ以外は周期条件）。
 
 ### 4.3 P_flow
 - z=z_min 断面のラインインテグラル。TM0 係数 **−π/(ωε₀)**、HOM 係数 **+π/(ωμ₀)**。
   数値プリミティブ（3 点ガウス線積分）は `physics_core.power_flow.edge_line_integral_3point`。
+- HOM の被積分関数は `Im[E_r c*]·r − n·Im[E_θ E_z*] + Im[E_θ (∂_z E_θ)*]·r`（E_θ = E_φ/j。導出は PHYSICS_AND_CONVENTIONS.md）。
+  第 2 項が `Re` だと E_z を持つ n≥1 の進行波で v_g・α が誤る（3.0.0 までのバグ）。v_g は `L dω/dθ`（固有周波数だけ）で確かめられる。
 
 ### 4.4 eigsh の不安定性（TM0 定在波）
 - ver1 由来の `eigsh(sigma, which='LA')` は σ 近傍で **数値的に不安定**で、同一行列でも
   ARPACK の乱数始ベクトル依存で返すモード集合がばらつく（K を増やすと ARPACK エラーも）。
 - → ver2 の開発中、ver1 との一致は「全体行列のビット一致」と基本モード TM010 の値対応で確かめた。
   実用堅牢化（`which='LM'`+ソート等）は未対応の検討課題。
+- SciPy 1.18 は既定で乱数の初期ベクトルを使うが、S バンド、ピルボックス、`acc2_pipe_flat`（粗いメッシュと 1 次要素を含む、TM0 と HOM n=0, 1）で
+  12〜20 回解き直した範囲では、返るモードの組は 1 通りだった。
 
 ### 4.5 蓄積エネルギー U（HOM）
-- eigsh の M 正規化（vᴴMv=1）により、HOM の U は全モードで **2π·ε₀**（≈5.563e-11）になる
-  （HOM 行列は係数 2 を省略した構成のため）。これは正常。Q の差は P_loss が担う。
+- eigsh の M 正規化（vᴴMv=1）により、HOM の U は全モードで **π·ε₀**（≈2.782e-11）になる
+  （U = ½ε₀·2π∫ε_r|E|²r dA。M は ∫ε_r(...)r dA で 2π を含まない）。Q の差は P_loss が担う。
+- 3.0.0 までは定在波だけ係数が 1 で（ver1 の「係数 2 省略の行列に対する補正」。U は M を使わず |E|² を直接積分しているので
+  補正は要らなかった）、定在波の U・Q_wall・P_diel（n=0 で tanδ=0 なら Q も）が 2 倍だった。TM0 ソルバ、θ=0 の周期セル、解析解のいずれとも 2 倍ずれていた。
 
 ### 4.6 gmsh のグローバル状態
 - `load_mesh` は呼び出しごとに `finalize()→initialize()` で**フレッシュな状態**にしてから読む。
@@ -250,15 +262,37 @@ shared                    ← 数学・I/O・規約の共通基盤
   GEO / Python スクリプトの書き出しはテキスト生成だけなのでメインスレッドで行う。EXE ではメッシュ生成だけがさらに
   別プロセスのメッシャで動く（§10）。
 
+### 4.8 進行波 TM0 の工学量は複素振幅で計算する
+- 進行波の固有ベクトルは全体位相 e^{jφ} が不定で、解き直すと変わる（ARPACK の初期ベクトル。SciPy 1.16 では新しいプロセスの最初の解は毎回同じ位相に
+  なるので、プロセスを分けて比べても気づかない。SciPy 1.18 では初期ベクトルが乱数で、実行のたびに変わる）。`TM0FieldReconstructor` の実部（`calculate_fields` / `axial_ez_scan` の既定
+  `return_complex=False`。ver1 互換）で工学量を計算すると φ に依存する（3.0.0 までのバグ。回帰テスト `test_tm0_traveling_phase_invariance.py`）。
+- post は `axial_ez_scan(..., return_complex=is_traveling)` を使う。新しい量を足すときも、実部ではなく複素振幅か |u|² の比で計算する。
+- 一様導波管の θ=180° は前進波と後退波が厳密に縮退し、メッシュごとに混合比が変わるので R/Q は一意に定まらない
+  （周期構造では分裂するので問題にならない）。
+
+### 4.9 post の規格化と HDF5 の固有ベクトルは別物（TM0）
+- TM0 の U・P_loss などは軸上ピーク 1 V/m に規格化した値だが、HDF5 の固有ベクトルは solve の値のまま（HOM の post は固有ベクトルそのものの値）。
+  両者を混ぜない。3.0.0 までの `export --scale-to-power` は P_loss の倍率を固有ベクトルに掛けていて、1 W の指定で多くは 1e9〜1e10 W 台になっていた（軸のないメッシュは規格化係数が 1 なので誤差なし）。
+- 現在は `_tm0_p_loss_of_stored_vector` が、規格化によらない比 P_loss/U に保存された固有ベクトルの U を掛けて換算する（古い post の h5 でも正しい）。
+  軸上スキャンから規格化係数を求め直す方法は取らない（古い進行波の post と合わず、ε_r 込みの再構成で書くと一様充填で ε_r² 倍ずれる）。
+
+### 4.10 軸上の E_z は要素の ε_r で割る（TM0）
+- `compute_tm0_parameters` は `TM0FieldReconstructor` に `eps_r_per_element` を渡す。軸上 E_z = (1/(jωε₀ε_r))(2 ∂H/∂r)。3.0.0 までは渡しておらず、一様 ε_r = 4 で U が 1/16、R/Q が 16 倍だった。
+- 界面で E_z は ε_r の比で跳ぶ。走査点は固定（2000 点）で界面で分かれないので、V の台形則には跳びの誤差が入る（普通の材料で 0.5% 未満。ε_r が大きく隙間が薄いときに大きい）。
+- GUI の場の図と 3D は節点の値（要素の加重平均）を使うので、界面の節点ではどちらの側の値でもない。工学量、書き出し、ダブルクリックは片側の要素の値を使う。
+
+### 4.11 TM0 の低いモードの警告
+- 予測周波数なしのとき `_warn_if_lower_modes_remain` が、求めた最低の固有値より下の固有値の本数を `count_eigenvalues_below` で数える（K − sM の対称な順序の LU の負の対角。Sylvester の慣性法則）。固有値は解かないので結果を変えない（`_count_missed_modes`）。静的な解 H_φ ∝ 1/r は離散の周波数が 0 にならないので周波数では判定せず、H_φ の Dirichlet が無く、定在波か θ = 0 かペアなしの連結成分の数だけ引く（`_static_components`）。返したモードが 1/r と重なれば別に警告する（しきい値では実モードと分離できないので断定しない）。例外はログに出して解を返し、30 万自由度を超えたら数えない。進行波は全位相で数え、5 万自由度を超えたら最初・最後・180° に近い位相だけ。HOM には入れていない。警告は `record_solver_warnings` が解いた直後に result.json へ足す。
+
 ---
 
 ## 5. 検証戦略
 
 | テスト | 何を確かめるか |
 |---|---|
-| `test_core_identical.py` | 計算コアのファイルが変わっていない（SHA-256 の一覧 `core_files.sha256`） |
+| `test_core_identical.py` | 計算コアのファイルが意図せず変わっていない（SHA-256 の一覧 `core_files.sha256`。意図した変更は `--update` して CHANGELOG に書く） |
 | 解析解との比較（`test_target_frequency.py`、`examples/accuracy_verification/` など） | 球形空洞・ピルボックスの周波数、誘電体損失 `Q_diel = 1/tanδ` |
-| 回帰（`test_pbc_phase_sign.py`、`test_power_flow_lineintegral.py`） | 過去のバグ（PBC 位相の符号、P_flow の係数）を繰り返さない |
+| 回帰（`test_pbc_phase_sign.py`、`test_power_flow_lineintegral.py`、`test_tm0_traveling_phase_invariance.py`、`test_hom_post_analytic.py`、`test_hom_periodic_wall.py`、`test_export_scale_to_power.py`、`test_cmd_post_output.py`、`test_fem_tm0_dielectric.py`、`test_tm0_low_modes.py`） | 過去のバグ（PBC 位相の符号、P_flow の係数、進行波 TM0 の post の全体位相依存、HOM の P_flow・壁損失・定在波の U・軸上の H_r と E_θ、周期面にある壁の点、周期面のエッジの符号、内部の辺、周期面の許容、目標壁損失の倍率、post の失敗で出力が消える、TM0 の軸上の誘電体）を繰り返さない。HOM と目標壁損失は解析解（導波管、ピルボックス、同軸）、`L dω/dθ`、定在波の周波数、書き出した場の壁面積分で照合する |
 | `test_convert_roundtrip.py` | 全サンプルの取り込み → 書き出しの往復で、メッシュ（Physical 名・節点数）と周波数が一致 |
 | `test_mshlite.py`、`test_meshing.py`、`test_launcher.py` | EXE の構成（gmsh 無しの読込・メッシャ・入口）が開発環境と同じ結果になる |
 | `test_known_bugs_v23.py` | v2.3 の GUI の既知バグ 14 件が再現しない |
@@ -339,9 +373,16 @@ shared                    ← 数学・I/O・規約の共通基盤
   実ウィンドウの `_main_window_check.py` で）。メッシュを作り直すと gmsh の版差で曲線境界上の節点が動き、
   周波数が同梱の参照結果と 1e-4 程度ずれる（`tools/verify_samples.py` がコアの差とメッシュの差を分けて報告）。
   手元の参照 h5（`axicavity_fem_version` が 2.3.0 より前）は 4 点求積で作られていて、最終コアとは 1e-3 程度ずれる
-  （同スクリプトは版を見て許容を切り替える）。
+  （同スクリプトは版を見て許容を切り替える）。HOM の進行波の n ≥ 1 は 3.0.1 で周波数が変わったので比べない。
 - GIF アニメーション（進行波）: 結果タブの「GIF 保存…」とレポートの `--animate`（固定キャンバス Agg + `render_gif`）。
 - TM0 定在波 `eigsh(which='LA')` のモード選択不安定性（§4.4）。`which='LM'`+ソートでの堅牢化は要再検証。
+- HOM の P_loss は曲線の壁で h の 1 次でしか収束しない（球 a=50 mm の TM101, n=0 で Q/解析解 0.904 / 0.953 / 0.975 / 0.988、h=8/4/2/1 mm。周波数は 3e-5 以下で
+  一致し、U も 2e-3 以内なので、解ではなく壁損失の評価側の問題）。誤差の向きは形状による（S バンドのセルの n=0 は多くのモードで TM0 より高く、h=2.5 mm の最低次 3 モードで端面 PEC は最大 3%、端面 E-short は最大 4.5%、E-short の 12 モードで最大 14%）。`_wall_loss` と `field_recon` は頂点だけの直線三角形で基底を評価している一方、要素行列は曲線対応なので
+  これが原因と疑っているが未確認。
+- HOM の軸のごく近く（0 < r ≪ h）の H_r は (n/r)E_z が要素ごとにばらつく（TM11、h=2 mm の r=0.1 mm で ±12%）。軸上ちょうどは正則性（n=1 で H_r = −H_θ、n≥2 で 0）で決めている（`fem_hom/field_recon.py`）。
+- 進行波の全体位相は固定していないので、場の図・GIF の「時間位相 0°」がどの瞬間かは解き直すと変わる。post の工学量には影響しないが、
+  瞬時値と Re / Im（GUI のダブルクリック値、場の書き出し、レポートの軸上 E_z の図、HOM の進行波の場の書き出し）は変わる。揃えるなら
+  ソルバー側で位相を固定する（最大値の節点を基準にすると、対称な 2 点で基準が入れ替わるおそれがある）。
 - 表示系（GUI ウィンドウ操作・PNG/HTML/GIF の見た目）は自動テスト不可 → 手動確認。
 - レポート GIF はモード数×フレーム数を生成するため遅く、1 モード数 MB になり得る（`optimize=False`）。
   フレーム数・最適化のチューニングは要検討。
@@ -403,7 +444,7 @@ intel-openmp（別の EULA）は入れない。
 アイコン・翻訳ファイルの同梱漏れは黙って空になるので `selftest` で確かめる。Nuitka は `pyvista` の import で
 `pooch` などを連れてくる（`sympy`・`requests` などは使わないので `--nofollow-import-to`）。Nuitka の EXE は既定で
 引数のどこかに `-m <x>` / `-c <x>` があると自己呼び出しとみなして止まるので、コア CLI の `-m <mesh>` のために
-`--no-deployment-flag=self-execution` を付ける。zig のキャッシュはビルド先ごとに分ける（共有すると別のプロジェクトの
+`--no-deployment-flag=self-execution` を付ける。除外したモジュール（`NOFOLLOW`）を `find_spec` で問い合わせると Nuitka は既定で例外を出し、pyvista が読み込み時に呼ぶ `find_spec('mypy')` で 3D 表示が丸ごと使えなくなるので `--no-deployment-flag=excluded-module-usage` も付ける（ビルド環境に mypy が入ると起きる。`selftest` が検出する）。zig のキャッシュはビルド先ごとに分ける（共有すると別のプロジェクトの
 定数が入った EXE ができ、"Frozen object named 'encodings' is invalid" で起動しない。packaging/README.md）。
 qtpy は import 時に GPL-3.0 のみの Qt Data Visualization を読みにいくので、ビルドから外している（MKL と同じプロセスに
 GPL のものを載せない。packaging/README.md の「ライセンス上の注意」）。

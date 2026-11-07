@@ -70,8 +70,23 @@ def has_icon(name: str) -> bool:
     return (ICON_DIR / f"{name}.svg").is_file()
 
 
-APP_ICON_FILE = Path(__file__).resolve().parent / "app_icon.svg"
+# アプリのアイコン（計算結果の絵。tools/make_app_icon.py が書き出す）: 32 px 以下は線を減らした小さい版
+APP_ICON_FILE = Path(__file__).resolve().parent / "app_icon.png"
+APP_ICON_SMALL_FILE = Path(__file__).resolve().parent / "app_icon_small.png"
+APP_ICON_SMALL_MAX = 32
 APP_ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)
+
+
+def render_app_icon(size: int) -> QtGui.QImage:
+    """アプリのアイコンを size × size の画像に（縮小は面積平均。ファイルが無ければ空の画像）."""
+    path = APP_ICON_SMALL_FILE if size <= APP_ICON_SMALL_MAX else APP_ICON_FILE
+    image = QtGui.QImage(str(path))
+    if image.isNull():
+        return image
+    image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
+    if image.width() != size:
+        image = image.scaled(size, size, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
+    return image
 
 
 def render_svg(path: Path, size: int) -> QtGui.QImage:
@@ -87,11 +102,12 @@ def render_svg(path: Path, size: int) -> QtGui.QImage:
 
 
 def app_icon() -> QtGui.QIcon:
-    """アプリのアイコン（ウィンドウ・タスクバー。EXE のアイコンは packaging/make_ico.py が同じ SVG から作る）."""
+    """アプリのアイコン（ウィンドウ・タスクバー。EXE のアイコンは packaging/make_ico.py が同じ画像から作る）."""
     result = QtGui.QIcon()
-    if APP_ICON_FILE.is_file():
-        for size in APP_ICON_SIZES:
-            result.addPixmap(QtGui.QPixmap.fromImage(render_svg(APP_ICON_FILE, size)))
+    for size in APP_ICON_SIZES:
+        image = render_app_icon(size)
+        if not image.isNull():
+            result.addPixmap(QtGui.QPixmap.fromImage(image))
     return result
 
 

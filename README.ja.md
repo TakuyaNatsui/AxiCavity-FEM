@@ -5,12 +5,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-635%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-980%20passing-brightgreen.svg)](tests/)
 [![Release](https://img.shields.io/github/v/release/TakuyaNatsui/AxiCavity-FEM)](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases)
 
 English README: [README.md](README.md)
 
-解説動画（バージョン 2）: https://youtu.be/U27KQ3pV1wE
+解説動画（バージョン 2）: https://youtu.be/U27KQ3pV1wE（動画に映る進行波 TM0 の R/Q や HOM の Q などの値は、3.0.1 の修正前のものです）
 
 ![5 セル加速管の TM0 モード](docs/images/tm0_accelerating_structure.png)
 
@@ -22,8 +22,8 @@ AxiCavity-FEM は回転体の (z, r) 半平面でヘルムホルツ方程式を�
 
 **バージョン 3 の新しいところ:** GUI を全面的に作り直しました — 幾何拘束と寸法を持つパラメトリックな 2 次元スケッチ、
 解析をすべて履歴として残すプロジェクト、3D 表示、コマンドラインと Python からのバッチ実行 — そして Python の
-インストールが要らない **Windows 版（EXE）** を用意しました。計算コアはバージョン 2.3.0 と同じコードなので、
-数値は変わりません。
+インストールが要らない **Windows 版（EXE）** を用意しました。計算コアはバージョン 2.3.0 を引き継いでいます。
+TM0 と HOM の後処理の誤りと、HOM の境界条件の誤り（アイリス付きのセル、z 方向に領域を分けたセル、鋭角の角）は 3.0.1 で修正しました（[CHANGELOG](CHANGELOG.md)）。
 
 ---
 
@@ -80,7 +80,7 @@ AxiCavity-FEM は回転体の (z, r) 半平面でヘルムホルツ方程式を�
 
 ### Windows: EXE 版（Python 不要）
 
-[Releases](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases) から `AxiCavity-FEM-3.0.0-win64.zip` を取得して
+[Releases](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases) から `AxiCavity-FEM-3.0.1-win64.zip` を取得して
 好きな場所に展開し、`AxiCavity-FEM.exe` を起動します。フォルダの中身はまとめて使ってください。コード署名をしていないので、
 初回に Windows の SmartScreen が出ることがあります（「詳細情報」→「実行」）。大きなメッシュ用の Intel MKL PARDISO と
 3D 表示を含み、メッシュは同梱のメッシャ（gmsh）が作ります。同じ EXE でコマンドラインも使えます
@@ -219,8 +219,12 @@ for a in (40, 45, 50):
 ## 以前のバージョン
 
 バージョン 3 は、バージョン 2.3.0 の wxPython の GUI を上記の新しい GUI に置き換えたものです。計算コア
-（`shared`・`physics_core`・`fem_tm0`・`fem_hom`・`reports`・`cli`）は同じコードで（違いは版番号の文字列だけ）、同じ
-メッシュなら 2.3.0 と最後の桁まで同じ結果になります。バージョン 2.3.0 はタグ
+（`shared`・`physics_core`・`fem_tm0`・`fem_hom`・`reports`・`cli`）は 2.3.0 を引き継いでいて、同じメッシュなら周波数・固有モードと
+定在波 TM0 の結果は SciPy 1.16 で 2.3.0 と最後の桁まで同じです（SciPy 1.18 では ARPACK の初期ベクトルが乱数なので、実行ごとに 10⁻⁸ 程度以下の差があり、
+固有ベクトルの符号や位相も変わります）。例外は次のもので、3.0.0 までの値は誤りだったので 3.0.1 で修正しました:
+進行波 TM0 の post（U・P_loss・P_diel・P_flow・V_eff・V_acc・R/Q）、HOM の post（U・Q・P_loss・P_diel・P_flow・v_g・α）、
+周期面に達する壁が外半径より内側にあるセル（アイリス付き、同軸）と外壁が磁気壁のセルの HOM の進行波 n ≥ 1 の周波数と固有モード（2.5 mm メッシュの S バンドのセルで最大 0.35% 低い）、z 方向に領域を分けたセルやとても細かいメッシュの HOM の進行波（前者は周波数が全く違った）と、90° より小さい角や要素 1 層の隙間がある形状の HOM の周波数と固有モード（TM0 を含めて、ε_r や tanδ を変えてメッシュを再利用した結果も）（角 70°、2.5 mm メッシュで周波数 +0.36%、Q +4.5%）、軸に接する要素の中の HOM の場、1 次要素でそのような角や隙間がある形状の TM0 の Q と壁損失、軸に誘電体があるときの TM0 の値（U・P_loss・P_diel・P_flow・V_eff・V_acc・R/Q）、
+目標壁損失で書き出す場の振幅（TM0 は桁違いに大きく、HOM の n ≥ 1 は壁損失がモードによって数十%ずれる。[CHANGELOG](CHANGELOG.md)）。バージョン 2.3.0 はタグ
 [`v2.3.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v2.3.0)、バージョン 1 はタグ
 [`v1.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v1.0) から取得できます。
 
@@ -234,7 +238,7 @@ for a in (40, 45, 50):
 @software{AxiCavityFEM,
   author  = {Natsui, Takuya},
   title   = {{AxiCavity-FEM}: a 2-D axisymmetric finite-element solver for RF cavity resonant modes},
-  version = {3.0.0},
+  version = {3.0.1},
   year    = {2026},
   url     = {https://github.com/TakuyaNatsui/AxiCavity-FEM}
 }

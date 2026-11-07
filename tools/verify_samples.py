@@ -6,14 +6,17 @@
 ``*_processed.txt``）から解析条件（種類・要素次数・モード数・位相・方位角次数。予測周波数は同名の .h5 の
 ``target_freq_GHz``）を読み取り、2 通りで解析して (n, 位相, モード) ごとの周波数を比べる:
 
-- **core**: 同梱の ``<name>.msh``（+ ``.materials.json``）をそのまま使う → ver3 の計算コアが ver2.3 と同じことの確認
+- **core**: 同梱の ``<name>.msh``（+ ``.materials.json``）をそのまま使う → ver3 の固有値解析（周波数）が ver2.3 と同じことの確認
   （許容 rtol 1e-9。参照の h5 の ``axicavity_fem_version`` が最終の 2.3.0 より古いときは、TM0 の求積則（4 点 → 7 点）や
   ARPACK の収束の違いで 1e-3 程度ずれるので rtol 1e-3）
 - **regen**: GUI と同じ経路（``core.legacy.load_gmshproj`` → ``.axiproj`` 保存 → ``to_multi_region`` →
   ``analysis_pipeline.run_job("analysis")``: gmsh でメッシュを作り直し → ``cmd_solve``）→ 同梱の .msh とは節点が
   変わり得る（gmsh の版・曲線境界の節点配置）ので許容は ``--rtol``（既定 1e-4。計画 §6.3）
 
-状態: ``ok``（両方一致）/ ``mesh-diff``（core は一致、regen が rtol 超）/ ``mismatch``（core が不一致）/ ``error``。
+HOM の進行波の n ≥ 1 は比べない: 3.0.1 で周期面に達する壁の誤りを直したので、アイリス付きのセルの周波数は ver2.3 と違う
+（CHANGELOG。正しいことは ``tests/test_hom_periodic_wall.py`` が定在波と解析解で確かめる）。比べるものが無ければ ``skipped``。
+
+状態: ``ok``（両方一致）/ ``mesh-diff``（core は一致、regen が rtol 超）/ ``mismatch``（core が不一致）/ ``skipped`` / ``error``。
 終了コードは mismatch / error があれば 1。
 """
 
@@ -140,6 +143,9 @@ def run_case(name: str, ref_path: Path, work: Path, rtol: float) -> dict:
     doc, warnings = load_gmshproj(SAMPLES / f"{name}.gmshproj")
     ref = parse_summary(ref_path)
     configure(doc, ref)
+    expected = {(n, phase): f for (n, phase), f in ref["freqs"].items() if phase is None or n == 0}
+    if not expected:
+        return {"name": name, "ref": ref_path.name, "status": "skipped", "detail": "HOM の進行波の n ≥ 1 は 3.0.1 で周波数が変わった"}
     issues = [i for i in check_geometry(doc) if i.level == "error"]
     if issues:
         return {"name": name, "ref": ref_path.name, "status": "error", "detail": "; ".join(i.message for i in issues)}
@@ -154,7 +160,7 @@ def run_case(name: str, ref_path: Path, work: Path, rtol: float) -> dict:
     shipped = SAMPLES / f"{name}.msh"
     if shipped.exists():
         got, secs = solve(doc, work / f"{ref_path.stem}_core", shipped)
-        compared, worst, missing = compare(ref["freqs"], got)
+        compared, worst, missing = compare(expected, got)
         row.update(coreCompared=compared, coreRel=worst, coreMissing=missing, coreS=round(secs, 1),
                    coreRtol=core_rtol)
         core_ok = compared > 0 and not missing and worst <= core_rtol
@@ -163,7 +169,7 @@ def run_case(name: str, ref_path: Path, work: Path, rtol: float) -> dict:
     if old_reference:
         rtol = max(rtol, OLD_REFERENCE_RTOL)
     got, secs = solve(doc, work / f"{ref_path.stem}_regen", None)
-    compared, worst, missing = compare(ref["freqs"], got)
+    compared, worst, missing = compare(expected, got)
     row.update(regenCompared=compared, regenRel=worst, regenMissing=missing, regenS=round(secs, 1))
     regen_ok = compared > 0 and not missing and worst <= rtol
     if core_ok is False:

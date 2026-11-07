@@ -26,6 +26,10 @@ from ..shared.element_functions import (
 )
 
 
+# 軸に頂点が接する要素で、この距離（要素の最長の辺に対する比）より軸に近い点の H_z, H_r は、軸上と同じく正則性で決める
+_AXIS_ZONE = 0.05
+
+
 def calculate_E_theta_from_rE_theta(rE_theta_values, vertices, n, simplices):
     """節点 DOF ``rE_theta`` から物理 ``E_theta`` を返す（n=1 は軸上を近傍平均で補間）.
 
@@ -128,6 +132,7 @@ class HOMFieldReconstructor:
         self.edge_vectors_lt = None
         self.face_vectors = None
         self.E_theta = None
+        self._axis_elements = None
         self.freq_GHz = 0.0
         self.omega = 0.0
 
@@ -142,9 +147,65 @@ class HOMFieldReconstructor:
             split_hom_dofs(eigenvector, num_edges, len(self.simplices),
                            len(self.vertices), self.element_order, self.n,
                            self.vertices, self.simplices)
+        if self.n == 1 and self.E_theta is not None:
+            self._apply_axis_regularity()
         self.freq_GHz = float(frequency_ghz)
         self.omega = 2.0 * np.pi * self.freq_GHz * 1e9
         return self
+
+    def _apply_axis_regularity(self):
+        """n = 1 の軸上の節点の E_θ を E_r にする（節点 DOF は rE_θ = 0 なので E_θ は決まらない）.
+
+        n = 1 の軸上の場は一様な横向きの場なので E_φ = jE_r（コアの変数 E_θ = E_φ/j で E_θ = E_r）。
+        E_r は軸上の節点を囲む要素の平均。工学量は :func:`split_hom_dofs` の値を使うのでこの処理を通らない。
+        """
+        axis_nodes = np.nonzero(np.abs(self.vertices[:, 1]) < 1e-9)[0]
+        if len(axis_nodes) == 0:
+            return
+        if self._axis_elements is None:
+            wanted = set(int(i) for i in axis_nodes)
+            self._axis_elements = {i: [] for i in wanted}
+            for elem_idx, simplex in enumerate(self.simplices):
+                for node in simplex:
+                    if int(node) in wanted:
+                        self._axis_elements[int(node)].append(elem_idx)
+        for node in axis_nodes:
+            pt = self.vertices[node]
+            values = [self._edge_vector(elem_idx, pt)[1] for elem_idx in self._axis_elements[int(node)]]
+            if values:
+                self.E_theta[node] = np.mean(values)
+
+    def _edge_dofs(self, elem_idx):
+        """要素のエッジ・面 DOF（要素の向きに合わせた符号付き）を返す."""
+        corners = self.simplices[elem_idx][:3]
+        local_edges = [(corners[0], corners[1]), (corners[1], corners[2]), (corners[2], corners[0])]
+        dtype = complex if np.iscomplexobj(self.edge_vectors) else float
+        ct_dofs = np.zeros(3, dtype=dtype)
+        lt_dofs = np.zeros(3, dtype=dtype)
+        for k, (n1, n2) in enumerate(local_edges):
+            edge_idx = self.edge_index_map[tuple(sorted((n1, n2)))]
+            sign = 1 if n1 < n2 else -1
+            ct_dofs[k] = sign * self.edge_vectors[edge_idx]
+            if self.element_order == 2 and self.edge_vectors_lt is not None:
+                lt_dofs[k] = self.edge_vectors_lt[edge_idx]
+        if self.element_order == 2 and self.face_vectors is not None:
+            f0 = self.face_vectors[2 * elem_idx]
+            f1 = self.face_vectors[2 * elem_idx + 1]
+        else:
+            f0 = f1 = 0.0
+        return ct_dofs, lt_dofs, f0, f1
+
+    def _edge_vector(self, elem_idx, pt):
+        """要素 ``elem_idx`` の点 ``pt`` の (E_z, E_r) を返す."""
+        verts = self.vertices[self.simplices[elem_idx][:3]]
+        ct_dofs, lt_dofs, f0, f1 = self._edge_dofs(elem_idx)
+        if self.element_order == 2:
+            N = calculate_edge_shape_functions_2nd(pt, verts)
+            return (ct_dofs[0] * N[0] + ct_dofs[1] * N[1] + ct_dofs[2] * N[2]
+                    + lt_dofs[0] * N[3] + lt_dofs[1] * N[4] + lt_dofs[2] * N[5]
+                    + f0 * N[6] + f1 * N[7])
+        N = calculate_edge_shape_functions(pt, verts)
+        return ct_dofs[0] * N[0] + ct_dofs[1] * N[1] + ct_dofs[2] * N[2]
 
     def calculate_fields(self, z, r, theta_time=0.0, elem_idx=None):
         """点 (z, r) における E, H 各成分を返す（領域外は None）.
@@ -170,24 +231,8 @@ class HOMFieldReconstructor:
         L = calculate_area_coordinates(pt, verts)
         gL = grad_area_coordinates(verts)
 
-        local_edges = [(simplex_cnr[0], simplex_cnr[1]),
-                       (simplex_cnr[1], simplex_cnr[2]),
-                       (simplex_cnr[2], simplex_cnr[0])]
+        ct_dofs, lt_dofs, f0, f1 = self._edge_dofs(elem_idx)
         dtype = complex if np.iscomplexobj(self.edge_vectors) else float
-        ct_dofs = np.zeros(3, dtype=dtype)
-        lt_dofs = np.zeros(3, dtype=dtype)
-        for k, (n1, n2) in enumerate(local_edges):
-            edge_idx = self.edge_index_map[tuple(sorted((n1, n2)))]
-            sign = 1 if n1 < n2 else -1
-            ct_dofs[k] = sign * self.edge_vectors[edge_idx]
-            if self.element_order == 2 and self.edge_vectors_lt is not None:
-                lt_dofs[k] = self.edge_vectors_lt[edge_idx]
-
-        if self.element_order == 2 and self.face_vectors is not None:
-            f0 = self.face_vectors[2 * elem_idx]
-            f1 = self.face_vectors[2 * elem_idx + 1]
-        else:
-            f0 = f1 = 0.0
 
         if self.E_theta is not None:
             if self.element_order == 2:
@@ -204,15 +249,7 @@ class HOMFieldReconstructor:
             G = np.zeros(n_nodes)
             gradG = np.zeros((n_nodes, 2))
 
-        if self.element_order == 2:
-            N = calculate_edge_shape_functions_2nd(pt, verts)
-            vec = (ct_dofs[0] * N[0] + ct_dofs[1] * N[1] + ct_dofs[2] * N[2]
-                   + lt_dofs[0] * N[3] + lt_dofs[1] * N[4] + lt_dofs[2] * N[5]
-                   + f0 * N[6] + f1 * N[7])
-        else:
-            N = calculate_edge_shape_functions(pt, verts)
-            vec = ct_dofs[0] * N[0] + ct_dofs[1] * N[1] + ct_dofs[2] * N[2]
-
+        vec = self._edge_vector(elem_idx, pt)
         Ez_comp, Er_comp = vec[0], vec[1]
         Etheta_comp = np.dot(nodal_dofs, G)
         dEtheta_dz = np.dot(nodal_dofs, gradG[:, 0])
@@ -237,15 +274,16 @@ class HOMFieldReconstructor:
 
         coef = 1j / (self.omega * self.mu0)
         Htheta_comp = coef * curl_E_theta
-        if abs(r) > 1e-9:
+        element_size = np.max(np.linalg.norm(verts - np.roll(verts, 1, axis=0), axis=1))
+        touches_axis = np.any(np.abs(verts[:, 1]) < 1e-9)       # 軸の無いメッシュ（細い内導体の壁）には効かせない
+        if abs(r) > (max(1e-9, _AXIS_ZONE * element_size) if touches_axis else 1e-9):
             Hz_comp = coef * curl_E_z
             Hr_comp = coef * curl_E_r
         else:
-            if n == 0:
-                Hz_comp = Hr_comp = 0
-            else:
-                Hz_comp = 0
-                Hr_comp = coef * (-dEtheta_dz)
+            # 軸上とそのごく近く: (n/r)E_z と (n/r)E_r は 0/0 に近く、要素ごとにばらつくので正則性で決める。
+            # n = 1 の軸上の H は一様な横向きの場なので H_φ = jH_r（コアの変数で H_r = -H_θ）。n ≥ 2 は 0。
+            Hz_comp = 0
+            Hr_comp = -Htheta_comp if n == 1 else 0
 
         comp_phase = np.exp(1j * np.deg2rad(theta_time))
         if self.is_standing:

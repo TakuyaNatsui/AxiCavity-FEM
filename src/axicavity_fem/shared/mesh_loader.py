@@ -9,13 +9,14 @@ ver1 ``FEM_code/FEM_helmholtz_TM0_calclation.py:load_gmsh_mesh`` と
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import gmsh
 import numpy as np
 
-from .boundary_groups import classify_boundaries
+from .boundary_groups import CANONICAL_NAMES, E_SHORT, PEC, canonical_bc_name, classify_boundaries
 from .edge_index import create_edge_index_map
 
 # 要素次数 → (gmsh 要素タイプ, 1 要素あたり節点数)
@@ -48,6 +49,7 @@ class MeshData:
     physical_groups: dict[str, np.ndarray] = field(default_factory=dict)
     element_region_ids: np.ndarray | None = None
     region_names: dict[int, str] | None = None
+    physical_edges: dict[str, np.ndarray] | None = None
 
     @property
     def simplices(self) -> np.ndarray:
@@ -112,6 +114,9 @@ def load_mesh(filename: str | Path, element_order: int = 2) -> MeshData:
                 n_tags, _, _ = gmsh.model.mesh.getNodes(
                     dim, entity_tag, includeBoundary=True)
                 group_node_tags.extend(n_tags)
+                # MSH 2.2 は境界の情報が無く、共有の節点が番号の小さいエンティティにしか入らない
+                for group_type in {1: (1, 8), 2: (2, 9)}.get(dim, ()):
+                    group_node_tags.extend(gmsh.model.mesh.getElementsByType(group_type, entity_tag)[1])
 
             group_node_tags = np.unique(group_node_tags)
             group_node_idx = np.array(
@@ -122,6 +127,8 @@ def load_mesh(filename: str | Path, element_order: int = 2) -> MeshData:
                     np.concatenate([physical_groups[name], group_node_idx]))
             else:
                 physical_groups[name] = group_node_idx
+
+        physical_edges = _read_physical_edges(tag2idx)
 
         # 2D Physical Group → element ごとの region_id マッピング
         element_region_ids, region_names = _build_element_region_map(
@@ -137,7 +144,37 @@ def load_mesh(filename: str | Path, element_order: int = 2) -> MeshData:
         physical_groups=physical_groups,
         element_region_ids=element_region_ids,
         region_names=region_names,
+        physical_edges=physical_edges,
     )
+
+
+def _read_physical_edges(tag2idx: dict) -> dict[str, np.ndarray]:
+    """壁の辺 → ``{name: (m, 2) 角の節点の対（小さい番号が先）}``.
+
+    1D の PhysicalGroup の線要素。外部メッシュで 2D の PhysicalGroup に BC の名前が付いているとき（領域を金属とみなす）は
+    その領域の三角形の辺も入れる（節点の判定と揃える）。
+    """
+    edges: dict[str, list] = {}
+    for _dim, p_tag in gmsh.model.getPhysicalGroups(dim=1):
+        name = gmsh.model.getPhysicalName(1, p_tag) or f"PhysicalGroup_1D_{p_tag}"
+        pairs = edges.setdefault(name, [])
+        for entity_tag in gmsh.model.getEntitiesForPhysicalGroup(1, p_tag):
+            for elem_type, per_element in ((1, 2), (8, 3)):       # 線要素の 1 次と 2 次（節点は両端が先）
+                _tags, node_tags = gmsh.model.mesh.getElementsByType(elem_type, entity_tag)
+                corners = np.asarray(node_tags).reshape(-1, per_element)[:, :2]
+                pairs.extend(sorted((tag2idx[a], tag2idx[b])) for a, b in corners)
+    for _dim, p_tag in gmsh.model.getPhysicalGroups(dim=2):
+        name = gmsh.model.getPhysicalName(2, p_tag)
+        if canonical_bc_name(name) not in CANONICAL_NAMES:
+            continue
+        pairs = edges.setdefault(name, [])
+        for entity_tag in gmsh.model.getEntitiesForPhysicalGroup(2, p_tag):
+            for elem_type, per_element in ((2, 3), (9, 6)):
+                _tags, node_tags = gmsh.model.mesh.getElementsByType(elem_type, entity_tag)
+                corners = np.asarray(node_tags).reshape(-1, per_element)[:, :3]
+                for a, b, c in corners:
+                    pairs.extend(sorted((tag2idx[p], tag2idx[q])) for p, q in ((a, b), (b, c), (c, a)))
+    return {name: np.array(pairs, dtype=int).reshape(-1, 2) for name, pairs in edges.items()}
 
 
 def _build_element_region_map(
@@ -214,11 +251,67 @@ class HOMMeshData:
     n: int
     element_region_ids: np.ndarray | None = None
     region_names: dict[int, str] | None = None
+    physical_edges: dict[str, np.ndarray] | None = None
+
+
+def _edges_of_kinds(physical_edges, kinds) -> set[tuple[int, int]] | None:
+    """指定の BC（正規名）の線要素の辺の集合. 線要素の情報が無い（古い h5）なら None."""
+    if physical_edges is None:
+        return None
+    out: set[tuple[int, int]] = set()
+    for name, pairs in physical_edges.items():
+        if canonical_bc_name(name) in kinds:
+            out.update((int(a), int(b)) if a < b else (int(b), int(a)) for a, b in pairs)
+    return out
+
+
+def _wall_edge_test(simplices):
+    """辺が壁の線かを判定する関数 ``is_wall(edge, nodes, line_edges)`` を返す.
+
+    両端が壁の節点でも、壁でない内部の辺がある（鋭角の角の対角、1 要素幅の隙間を渡る辺）。
+    2 次要素は中点節点も集合にあるかで分かる。1 次要素は節点集合では区別できないので、メッシュの線要素
+    （``line_edges``）で判定する。線要素の情報が無い古い h5 では領域の外周の辺（要素 1 つだけに属する）を壁とする。
+    """
+    simplices = np.asarray(simplices)
+    if simplices.shape[1] == 6:
+        midpoints = {}
+        for simplex in simplices:
+            for a, b, m in ((0, 1, 3), (1, 2, 4), (2, 0, 5)):
+                midpoints[tuple(sorted((int(simplex[a]), int(simplex[b]))))] = int(simplex[m])
+        return lambda edge, nodes, _lines: edge[0] in nodes and edge[1] in nodes and midpoints[edge] in nodes
+
+    uses: dict[tuple[int, int], int] = {}
+    for simplex in simplices:
+        for a, b in ((0, 1), (1, 2), (2, 0)):
+            key = tuple(sorted((int(simplex[a]), int(simplex[b]))))
+            uses[key] = uses.get(key, 0) + 1
+
+    def is_wall(edge, nodes, line_edges):
+        if edge[0] not in nodes or edge[1] not in nodes:
+            return False
+        return edge in line_edges if line_edges is not None else uses[edge] == 1
+    return is_wall
+
+
+def _has_interior_edge_between(simplices, nodes) -> bool:
+    """両端が ``nodes`` にあり要素 2 つに属する辺があるか（0 本なら外周の規則と線要素の結果は同じ）."""
+    uses: dict[tuple[int, int], int] = {}
+    for simplex in np.asarray(simplices)[:, :3]:
+        for a, b in ((0, 1), (1, 2), (2, 0)):
+            p, q = int(simplex[a]), int(simplex[b])
+            if p in nodes and q in nodes:
+                key = (p, q) if p < q else (q, p)
+                uses[key] = uses.get(key, 0) + 1
+    return any(count > 1 for count in uses.values())
 
 
 def compute_hom_boundary(vertices, simplices, edge_index_map, physical_groups,
-                         n):
+                         n, physical_edges=None):
     """HOM の境界 DOF 分類を行う（メッシュ読込と独立、H5 からの再計算にも使う）.
+
+    Args:
+        physical_edges: ``{name: (m, 2)}`` メッシュの線要素。1 次要素の壁の判定に使う
+            （None は線要素を持たない古い h5）。
 
     Returns:
         (boundary_edge_indices, boundary_vertices_indices,
@@ -226,13 +319,15 @@ def compute_hom_boundary(vertices, simplices, edge_index_map, physical_groups,
     """
     classification = classify_boundaries(physical_groups, vertices)
     # HOM の FEM Dirichlet: PEC ∪ E-short（PEC は Dirichlet エイリアスを含む）
-    pec_nodes_set = set(int(i) for i in classification.pec_nodes)
-    pec_nodes_set |= set(int(i) for i in classification.eshort_nodes)
+    labeled_nodes = set(int(i) for i in classification.pec_nodes)
+    labeled_nodes |= set(int(i) for i in classification.eshort_nodes)
+    pec_nodes_set = set(labeled_nodes)
     # P_loss 用: 物理 PEC 壁のみ（E-short 対称境界を除く）
     pec_loss_nodes_set = set(int(i) for i in classification.pec_nodes)
 
     # 軸 r=0 ノードの処理（ver1 と同じ閾値・両端コーナー除外）
     z_axis_nodes = {i for i, v in enumerate(vertices) if v[1] < 1e-10}
+    all_axis_nodes = set(z_axis_nodes)
     if z_axis_nodes:
         axis_list = list(z_axis_nodes)
         zmin_node = zmax_node = axis_list[0]
@@ -249,13 +344,31 @@ def compute_hom_boundary(vertices, simplices, edge_index_map, physical_groups,
         else:
             pec_nodes_set.update(z_axis_nodes)
 
+    is_wall = _wall_edge_test(simplices)
+    wall_lines = _edges_of_kinds(physical_edges, (PEC, E_SHORT))
+    loss_lines = _edges_of_kinds(physical_edges, (PEC,))
     boundary_edge_indices = []
     pec_loss_edge_indices = []
     for (v1, v2), edge_idx in edge_index_map.items():
-        if v1 in pec_nodes_set and v2 in pec_nodes_set:
+        edge = (int(v1), int(v2))
+        on_axis = edge[0] in all_axis_nodes and edge[1] in all_axis_nodes
+        if n == 0:
+            # 軸の辺は自然境界。軸の途中に接する壁の辺は、軸上の節点を除く前のラベルで判定する
+            fixed = not on_axis and is_wall(edge, labeled_nodes, wall_lines)
+        elif on_axis:
+            fixed = edge[0] in pec_nodes_set and edge[1] in pec_nodes_set     # 軸の辺に線要素のラベルは要らない
+        else:
+            fixed = is_wall(edge, pec_nodes_set, wall_lines)
+        if fixed:
             boundary_edge_indices.append(edge_idx)
-        if v1 in pec_loss_nodes_set and v2 in pec_loss_nodes_set:
+        if is_wall(edge, pec_loss_nodes_set, loss_lines):
             pec_loss_edge_indices.append(edge_idx)
+
+    if np.asarray(simplices).shape[1] == 3 and physical_edges is None and _has_interior_edge_between(simplices, labeled_nodes):
+        warnings.warn(
+            "[HOM] 線要素の情報が無い 1 次要素の h5 です（3.0.1 より前の solve）で、両端が壁の節点の内部の辺があります。領域の外周の辺だけを"
+            "壁に数えるので、内部の PEC 線があると壁損失と Q が正しくありません。解析を実行し直してください。",
+            UserWarning, stacklevel=2)
 
     boundary_vertices_indices = sorted(pec_nodes_set) if n > 0 else []
     return (boundary_edge_indices, boundary_vertices_indices,
@@ -270,10 +383,11 @@ def load_mesh_hom(filename: str, n: int, element_order: int = 1) -> HOMMeshData:
     の上に再構成した版。
 
     HOM の境界規約（DOF: Nédélec エッジ + 節点）:
-      - PEC / E-short（+ Dirichlet エイリアス）→ エッジ・節点ともに Dirichlet (=0)
+      - PEC / E-short（+ Dirichlet エイリアス）→ 壁の線の上のエッジと節点が Dirichlet (=0)
+        （両端が壁の節点でも内部の辺は固定しない。:func:`_wall_edge_test`）
       - M-short → 自然境界（何もしない）
       - 軸 r=0, n=0 → 自然境界（PEC 指定されていても除外）
-      - 軸 r=0, n≥1 → 強制 Dirichlet
+      - 軸 r=0, n≥1 → 強制 Dirichlet（軸の両端の節点と、それに接する軸の辺は端面のラベルに従う）
 
     Args:
         filename: メッシュファイルパス (.msh)。
@@ -292,7 +406,7 @@ def load_mesh_hom(filename: str, n: int, element_order: int = 1) -> HOMMeshData:
 
     boundary_edge_indices, boundary_vertices_indices, pec_loss_edge_indices = \
         compute_hom_boundary(vertices, simplices, edge_index_map,
-                             physical_groups, n)
+                             physical_groups, n, mesh.physical_edges)
 
     return HOMMeshData(
         simplices=simplices,
@@ -307,4 +421,5 @@ def load_mesh_hom(filename: str, n: int, element_order: int = 1) -> HOMMeshData:
         n=n,
         element_region_ids=mesh.element_region_ids,
         region_names=mesh.region_names,
+        physical_edges=mesh.physical_edges,
     )

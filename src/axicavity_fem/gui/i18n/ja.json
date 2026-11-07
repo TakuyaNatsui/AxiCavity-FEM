@@ -1108,9 +1108,9 @@
       "ribbon": {
         "run": "形状・材料・境界条件を確認してから、子プロセスで solve（→ post）を実行します",
         "cancel": "次の段階の切れ目で止めます（固有値計算の途中では止まりません）",
-        "forceStop": "子プロセスを直ちに終了します（結果は残りません）",
-        "post": "表示中の結果に導電率・β を変えて post をやり直します",
-        "report": "表示中の結果から HTML レポート（図と表）を作ります",
+        "forceStop": "子プロセスを直ちに終了します（実行中の段階の出力は残りません）",
+        "post": "表示中の結果（無ければ選択中か最新の完了した結果）に導電率・β を変えて post をやり直します",
+        "report": "表示中の結果（無ければ選択中か最新の完了した結果）から HTML レポート（図と表）を作ります",
         "openReport": "作ったレポート（index.html）をブラウザで開きます"
       }
     },
@@ -1204,7 +1204,7 @@
     "phasesHint": "単一値 120、列挙 60,90、スキャン 0:180:20",
     "numModes": "モード数",
     "target": "予測周波数 [GHz]",
-    "targetAuto": "自動（最低次から）",
+    "targetAuto": "自動（r_max から決めたシフトの近くから）",
     "targetHint": "指定すると shift-invert のシフトをこの周波数にして近いモードから返します",
     "elemOrder": "要素次数",
     "elemOrderValue": "{{order}} 次（メッシュタブの次数と同じ）",
@@ -1231,7 +1231,7 @@
     "cannotRun": "実行できません:\n{{message}}",
     "noResult": "post / レポートの対象になる結果がありません。先に解析を実行してください。",
     "noReport": "レポートがまだありません（「レポート作成」で作ります）",
-    "forceStopConfirm": "子プロセスを強制終了します。結果は残りません。よろしいですか？",
+    "forceStopConfirm": "子プロセスを強制終了します。実行中の段階の出力は残りません（完了した solve の結果は残ります）。よろしいですか？",
     "submitted": "解析を投入しました: {{id}}",
     "postSubmitted": "post を投入しました: {{id}}",
     "reportSubmitted": "レポート作成を投入しました: {{id}}"
@@ -1272,6 +1272,7 @@
     "modeItem": "Mode {{index}}: {{f}} GHz",
     "tableTitle": "モード表（選んだ n・位相）",
     "noPost": "post の値（Q、R/Q …）がありません。解析タブの「post 再実行」で計算できます",
+    "noPostExternal": "post の値（Q、R/Q …）がありません。プロジェクトの外の h5 はコマンドラインの post で計算できます（マニュアル §13）",
     "optionsTitle": "表示",
     "hColor": "Hθ を色で",
     "hColorHom": "Eθ / Hθ を色で",
@@ -1334,7 +1335,7 @@
     "azOrders": "方位角次数 n = {{orders}}",
     "modes": "{{count}} モード、要素次数 {{order}}",
     "target": "予測周波数 {{f}} GHz 付近から",
-    "targetAuto": "最低次のモードから（予測周波数なし）",
+    "targetAuto": "r_max から決めたシフトの近くから（予測周波数なし）",
     "post": "post: 導電率 {{cond}} S/m、β = {{beta}}",
     "noPost": "post は実行しない（solve だけ）",
     "region": "{{name}} [{{tag}}]  εr = {{eps}}",

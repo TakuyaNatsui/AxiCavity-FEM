@@ -81,6 +81,17 @@ def _modeset_dict(frequencies, eigenvalues, eigenvectors):
             "eigenvectors": np.asarray(eigenvectors)}
 
 
+class _WrongElementOrder(ValueError):
+    """メッシュの次数と --elem-order の違い."""
+
+
+def _require_elements(count: int, args) -> None:
+    if count == 0:
+        raise _WrongElementOrder(
+            f"{args.mesh_file} に {args.elem_order} 次の三角形要素がありません。"
+            f"メッシュの次数に合わせて --elem-order を指定してください（1 次のメッシュなら --elem-order 1）。")
+
+
 def _solve_tm0(args, phase_list):
     from ..fem_tm0.solver import solve_tm0_standing, solve_tm0_traveling
     from ..shared.mesh_loader import load_mesh
@@ -88,6 +99,7 @@ def _solve_tm0(args, phase_list):
                                             build_tan_delta_per_element)
 
     mesh = load_mesh(args.mesh_file, args.elem_order)
+    _require_elements(mesh.num_elements, args)
     is_traveling = not (len(phase_list) == 1 and phase_list[0] == 0.0)
 
     material_table = _load_material_table(
@@ -112,6 +124,7 @@ def _solve_tm0(args, phase_list):
         "vertices": mesh.nodes, "simplices": mesh.elements,
         "edge_map_keys": None, "edge_map_values": None,
         "physical_groups": mesh.physical_groups,
+        "physical_edges": mesh.physical_edges,
         "elem_order": mesh.element_order, "num_edges": 0,
         # ver2.1: H→E 換算で ÷ε_r するため要素ごと ε_r を保存（誘電体のみ）
         "eps_r_per_element": build_eps_r_per_element(mesh, material_table),
@@ -138,12 +151,14 @@ def _solve_hom(args, phase_list):
                                             build_tan_delta_per_element)
     for n in args.az_order:
         mesh = load_mesh_hom(args.mesh_file, n, args.elem_order)
+        _require_elements(len(mesh.simplices), args)
         if mesh_dict is None:
             keys, values = _edge_map_arrays(mesh.edge_index_map)
             mesh_dict = {
                 "vertices": mesh.vertices, "simplices": mesh.simplices,
                 "edge_map_keys": keys, "edge_map_values": values,
                 "physical_groups": mesh.physical_groups,
+                "physical_edges": mesh.physical_edges,
                 "elem_order": mesh.element_order, "num_edges": mesh.num_edges,
                 # ver2.1: 情報として保存（HOM 場再構成での利用は後続）
                 "eps_r_per_element": build_eps_r_per_element(
@@ -187,10 +202,14 @@ def run(args) -> int:
           f"phase={phase_list} "
           f"target-freq={'auto' if target_freq is None else f'{target_freq} GHz'}")
 
-    if solver_type == "tm0":
-        mesh_dict, results_by_n, material_table = _solve_tm0(args, phase_list)
-    else:
-        mesh_dict, results_by_n, material_table = _solve_hom(args, phase_list)
+    try:
+        if solver_type == "tm0":
+            mesh_dict, results_by_n, material_table = _solve_tm0(args, phase_list)
+        else:
+            mesh_dict, results_by_n, material_table = _solve_hom(args, phase_list)
+    except _WrongElementOrder as exc:
+        print(f"エラー: {exc}")
+        return 1
 
     parameters = {
         "solver_type": solver_type, "elem_order": args.elem_order,

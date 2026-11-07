@@ -94,11 +94,9 @@ def tm0_p_flow_coefficient(omega: float, eps0: float = EPS0) -> float:
     Returns:
         前置係数 ``−π / (ω ε₀)``.
 
-    Note (ver2.1 制約):
-        ε₀ は z=z_min ポート断面で一定であることを前提とする。誘電体が port
-        断面を跨ぐ場合は ε₀ → ε(r)·ε₀ で区分的に積分する必要があるが、
-        ver2.1 では未対応。ポートは vacuum 領域内に置くことを推奨し、
-        ``fem_tm0.post_process.tm0_p_flow_zmin`` 側で sanity check を行う。
+    Note:
+        誘電体がポート断面にあるときは、``fem_tm0.post_process.tm0_p_flow_zmin``
+        が断面の各要素の寄与を ε_r で割る（この係数は真空のまま）。
     """
     return -math.pi / (omega * eps0)
 

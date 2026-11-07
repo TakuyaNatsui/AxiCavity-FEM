@@ -49,6 +49,8 @@ NOFOLLOW = [
     "pandas", "pyarrow", "numba", "llvmlite",
     "trame", "trame_vtk", "trame_vuetify", "trame_client", "trame_server",
     "sympy", "mpmath", "requests", "cryptography", "urllib3", "fsspec", "jinja2", "lxml",
+    # pyvista.typing.mypy_plugin と scooby から辿られるが、実行には使わない（scooby の psutil は無くても動く）
+    "mypy", "mypy_extensions", "librt", "psutil",
     # Qt Data Visualization はオープンソース版が GPL-3.0 のみ（LGPL ではない）。qtpy が import 時に読みにいく
     # （ImportError は qtpy が無視する）ので、入れると 3D 表示のたびに GPL の DLL が本体のプロセスに載る
     "PySide6.QtDataVisualization", "qtpy.QtDataVisualization",
@@ -57,7 +59,7 @@ NOFOLLOW = [
 GPL_ONLY_QT_DLLS = ("qt6charts", "qt6datavisualization", "qt6graphs", "qt6virtualkeyboard", "qt6quick3d",
                     "qt6lottie", "qt6quicktimeline", "qt6shadertools")
 INCLUDE_PACKAGES = ["axicavity_fem"]
-INCLUDE_PACKAGE_DATA = ["axicavity_fem.gui"]       # ui/icons/*.svg・ui/app_icon.svg・i18n/*.json
+INCLUDE_PACKAGE_DATA = ["axicavity_fem.gui"]       # ui/icons/*.svg・ui/app_icon*.png・i18n/*.json
 # 版を ``importlib.metadata`` でしか知る方法が無いもの（バージョン情報の表示用。planegcs には __version__ が無い）。
 # pip の mkl は Python のパッケージが無いので Nuitka が受け付けない（版は app_info が MKL 自身に聞く）
 INCLUDE_METADATA = ["planegcs"]
@@ -70,7 +72,7 @@ MKL_DLL_PATTERNS = (
 )
 
 # 同梱する文書とサンプル（samples/ は入力ファイルだけ）
-DOC_FILES = ["USER_MANUAL.md", "PHYSICS_AND_CONVENTIONS.md", "LICENSE"]
+DOC_FILES = ["USER_MANUAL.md", "PHYSICS_AND_CONVENTIONS.md", "CHANGELOG.md", "LICENSE"]
 SAMPLE_PATTERNS = ["*.gmshproj", "*.af", "*.py", "README.md"]
 
 
@@ -114,6 +116,8 @@ def nuitka_command(args: argparse.Namespace, build_dir: Path, icon: Path | None)
            "--noinclude-unittest-mode=nofollow",
            "--python-flag=isolated",                 # 外部の site-packages や PYTHONPATH を読まない
            "--no-deployment-flag=self-execution",    # コア CLI の `-m <mesh>` を自己呼び出しと誤認させない
+           # 除外したモジュールを find_spec で問い合わせると既定では例外になる（pyvista が読み込み時に find_spec('mypy') を呼ぶ）
+           "--no-deployment-flag=excluded-module-usage",
            "--company-name=AxiCavity-FEM", "--product-name=AxiCavity-FEM",
            f"--file-version={numeric}", f"--product-version={numeric}",
            "--file-description=AxiCavity-FEM: 2-D FEM solver for axisymmetric RF cavity modes",

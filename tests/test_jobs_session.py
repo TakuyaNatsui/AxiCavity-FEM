@@ -110,3 +110,14 @@ def test_force_stop_and_late_exit_of_previous_child(qtbot, app, tmp_path):
     assert quitter.status == "cancelled"
     session.shutdown()
     assert runner.parse_event("not json") is None and runner.parse_event(done)["event"] == "done"
+
+
+def test_shutdown_records_a_killed_child_as_cancelled(qtbot, app, tmp_path):
+    """窓を閉じて子を kill しても「クラッシュ」と記録しない."""
+    session = JobSession()
+    stuck = _fake_job(tmp_path, "stuck", "import time; time.sleep(30)")
+    session._start(stuck)
+    qtbot.waitUntil(lambda: session._process is not None
+                    and session._process.state() == QtCore.QProcess.Running, timeout=30_000)
+    session.shutdown()
+    assert stuck.status == "cancelled", (stuck.status, stuck.error)

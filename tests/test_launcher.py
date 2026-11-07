@@ -37,7 +37,7 @@ def test_gui_request_detection():
 
 def test_version_and_help(capsys):
     assert launcher.main(["--version"]) == 0
-    assert "AxiCavity-FEM 3.0.0" in capsys.readouterr().out
+    assert "AxiCavity-FEM 3.0.1" in capsys.readouterr().out
     assert launcher.main(["help"]) == 0
     assert "selftest" in capsys.readouterr().out
     assert launcher.main(["no-such-command"]) == 2

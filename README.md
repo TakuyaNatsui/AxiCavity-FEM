@@ -5,12 +5,13 @@ parametric, sketch-based GUI, mesh generation, post-processing, 3-D field views 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-635%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-980%20passing-brightgreen.svg)](tests/)
 [![Release](https://img.shields.io/github/v/release/TakuyaNatsui/AxiCavity-FEM)](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases)
 
 日本語版 README は [README.ja.md](README.ja.md) にあります。
 
-YouTube explanatory video (version 2): https://youtu.be/U27KQ3pV1wE
+YouTube explanatory video (version 2): https://youtu.be/U27KQ3pV1wE (traveling-wave TM0 and HOM values
+such as R/Q and Q in the video predate the corrections in 3.0.1)
 
 ![TM0 mode of a 5-cell accelerating structure](docs/images/tm0_accelerating_structure.png)
 
@@ -26,8 +27,9 @@ standing waves or as traveling waves with a periodic (cell-to-cell) phase advanc
 **New in version 3:** a completely new graphical interface — a parametric 2-D sketcher with
 geometric constraints and dimensions, projects that keep every analysis as a history, a 3-D
 field view, batch runs from the command line and from Python — and a **Windows executable**
-that needs no Python installation. The solver core is the same code as version 2.3.0, so the
-numbers are unchanged.
+that needs no Python installation. The solver core is carried over from version 2.3.0. Errors in the
+post-processing of TM0 and HOM modes, and in the boundary conditions of HOM modes (iris-loaded cells, cells split along z, acute corners),
+were corrected in 3.0.1 (see the [changelog](CHANGELOG.md)).
 
 ---
 
@@ -88,7 +90,7 @@ numbers are unchanged.
 
 ### Windows: the executable (no Python needed)
 
-Download `AxiCavity-FEM-3.0.0-win64.zip` from
+Download `AxiCavity-FEM-3.0.1-win64.zip` from
 [Releases](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases), unzip it anywhere, and run
 `AxiCavity-FEM.exe`. Keep the whole folder together. The executable is not code-signed, so Windows
 SmartScreen may ask once ("More info" → "Run anyway"). It includes Intel MKL PARDISO for large
@@ -237,9 +239,19 @@ orders of magnitude more accurate than 1st-order elements at the same mesh size.
 ## Earlier versions
 
 Version 3 replaces the wxPython interface of version 2.3.0 with the new GUI described above.
-The solver core (`shared`, `physics_core`, `fem_tm0`, `fem_hom`, `reports`, `cli`) is the same
-code — only the version string differs — so results agree with 2.3.0 to the last digit for the
-same mesh. Version 2.3.0 remains available at tag
+The solver core (`shared`, `physics_core`, `fem_tm0`, `fem_hom`, `reports`, `cli`) is carried over
+from 2.3.0, so for the same mesh the frequencies, the eigenmodes and the standing-wave TM0 results agree
+with 2.3.0 to the last digit with SciPy 1.16. (With SciPy 1.18 ARPACK's start vector is random, so runs
+differ slightly, by about 10⁻⁸ or less, and in the sign or phase of the eigenvectors.) The exceptions were wrong
+in 3.0.0 and earlier and were corrected in 3.0.1: the post-processing of traveling-wave TM0 modes (U, P_loss,
+P_diel, P_flow, V_eff, V_acc, R/Q) and of HOM modes (U, Q, P_loss, P_diel, P_flow, v_g, α), the frequencies
+and eigenmodes of traveling HOM modes with n ≥ 1 in cells whose wall reaches the end plane below the outer radius
+(iris, coaxial inner conductor) or that have a magnetic outer wall (up to 0.35% low for the S-band cell on a 2.5 mm mesh), the frequencies and eigenmodes of traveling HOM modes on cells split into regions along z (completely wrong) or on very fine meshes, and of HOM modes
+on geometries with a corner below 90° or a one-element gap (and, in TM0 too, results that reused a mesh after ε_r or tanδ changed) (+0.36% in f and +4.5% in Q at a 70° corner on a 2.5 mm mesh),
+the fields of HOM modes in the elements touching the axis, Q and wall loss of TM0 modes with 1st-order elements at such corners or gaps, TM0 values with
+a dielectric on the axis (U, P_loss, P_diel, P_flow, V_eff, V_acc, R/Q), and the field
+amplitude when exporting fields at a target wall loss (TM0: far too large; HOM with n ≥ 1: wall loss off by
+tens of percent, depending on the mode). See the [changelog](CHANGELOG.md). Version 2.3.0 remains available at tag
 [`v2.3.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v2.3.0), and version 1
 at tag [`v1.0`](https://github.com/TakuyaNatsui/AxiCavity-FEM/releases/tag/v1.0).
 
@@ -253,7 +265,7 @@ If this code contributes to published work, please cite it:
 @software{AxiCavityFEM,
   author  = {Natsui, Takuya},
   title   = {{AxiCavity-FEM}: a 2-D axisymmetric finite-element solver for RF cavity resonant modes},
-  version = {3.0.0},
+  version = {3.0.1},
   year    = {2026},
   url     = {https://github.com/TakuyaNatsui/AxiCavity-FEM}
 }

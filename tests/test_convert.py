@@ -283,7 +283,7 @@ def test_check_geometry_errors_and_warnings():
     assert to_multi_region(neg, strict=False).geom.points[0] == (0, -10)
 
 
-def test_traveling_wave_end_planes_and_axis_dielectric_warnings():
+def test_traveling_wave_end_planes_warning_and_no_warning_for_axis_dielectric():
     doc, lines, _ = pillbox()
     doc.analysis.wave = "traveling"
     issues = {i.code: i for i in check_geometry(doc)}
@@ -293,7 +293,7 @@ def test_traveling_wave_end_planes_and_axis_dielectric_warnings():
     assert "tw_end_pec" not in [i.code for i in check_geometry(doc)]
     prof = sketch_profiles(doc)[0]
     doc.regions = [RegionSetting(key=prof.id, anchor=prof.anchor, name="D", materialTag="d", epsR=4.0)]
-    assert "axis_region_eps" in [i.code for i in check_geometry(doc)]
+    assert [i for i in check_geometry(doc) if i.level == "warning" and "ε_r" in i.message] == []    # 軸の誘電体も後処理が扱う
 
 
 def test_arc_crossing_the_axis_is_an_error():
@@ -307,3 +307,147 @@ def test_arc_crossing_the_axis_is_an_error():
     add_arc(ok.sketch, (50, 5), (60, 5), (40, 5))         # 0° → 180°: 上に膨らむ
     add_line(ok.sketch, (40, 5), (60, 5), tolerance=1e-6)
     assert "arc_crosses_axis" not in [i.code for i in check_geometry(ok)]
+
+
+def _polygon_doc(points, analysis="tm0", wave="traveling", units=None):
+    from axicavity_fem.gui.core.sketch.model import add_polyline
+
+    doc = create_empty_document("e")
+    if units:
+        doc.meta.units = units
+    lines, _ = add_polyline(doc.sketch, points, close=True)
+    doc.analysis.wave = wave
+    doc.analysis.type = analysis
+    return doc, lines
+
+
+SPLIT_ENDS = [(0, 0), (35, 0), (35, 20), (35, 40), (0, 40), (0, 20)]     # 線 1, 5 は r < 20、線 2, 4 は r > 20 の端面
+
+
+def _label_split_ends(doc, lines, opening, wall):
+    for line in (lines[1], lines[5]):
+        doc.boundaries[line] = opening
+    for line in (lines[2], lines[4]):
+        doc.boundaries[line] = wall
+
+
+def _codes(doc):
+    return {i.code: i for i in check_geometry(doc)}
+
+
+@pytest.mark.parametrize("analysis", ["tm0", "hom"])
+@pytest.mark.parametrize("opening, wall", [("M-short", "PEC"), ("None", "E-short"), ("E-short", "PEC"), ("None", "M-short")])
+def test_partial_wall_on_the_end_planes_is_reported(analysis, opening, wall):
+    doc, lines = _polygon_doc(SPLIT_ENDS, analysis=analysis)
+    _label_split_ends(doc, lines, opening, wall)
+    issues = _codes(doc)
+    assert issues["tw_end_partial_wall"].level == "warning"
+    assert set(issues["tw_end_partial_wall"].entity_ids) == {lines[2], lines[4]}
+    assert "計算に入りません" in issues["tw_end_partial_wall"].message
+    assert "tw_end_mismatch" not in issues                              # 両端の範囲は同じ
+
+
+@pytest.mark.parametrize("opening, wall", [("E-short", "E-short"), ("PEC", "PEC"), ("None", "None"), ("M-short", "M-short")])
+def test_end_planes_with_one_label_are_not_reported_as_partial(opening, wall):
+    doc, lines = _polygon_doc(SPLIT_ENDS)
+    _label_split_ends(doc, lines, opening, wall)
+    assert "tw_end_partial_wall" not in _codes(doc)
+
+
+def test_standing_wave_does_not_check_the_end_planes():
+    doc, lines = _polygon_doc(SPLIT_ENDS, wave="standing")
+    _label_split_ends(doc, lines, "E-short", "PEC")
+    assert "tw_end_partial_wall" not in _codes(doc)
+
+
+ONE_SIDED = [(0, 0), (35, 0), (35, 20), (35, 40), (5, 40), (5, 20), (0, 20)]   # z = 0 の端面は r < 20 だけ
+
+
+def _one_sided(analysis):
+    doc, lines = _polygon_doc(ONE_SIDED, analysis=analysis)
+    doc.boundaries[lines[1]] = "E-short"
+    doc.boundaries[lines[6]] = "E-short"
+    return doc, lines
+
+
+def test_one_sided_wall_stops_hom():
+    """"hom" は文書の実際の値（3.0.1 の開発中は "HOM" と比べていて、この検証は一度も出なかった）."""
+    issues = _codes(_one_sided("hom")[0])
+    assert issues["tw_end_mismatch"].level == "error" and "切り方" in issues["tw_end_mismatch"].message
+    assert "tw_end_partial_wall" not in issues                          # 対のない壁は周期条件で上書きされない
+
+
+def test_one_sided_wall_is_clean_for_tm0_when_the_lines_line_up():
+    issues = _codes(_one_sided("tm0")[0])
+    assert "tw_end_mismatch" not in issues and "tw_end_partial_wall" not in issues
+
+
+def test_tm0_warns_when_a_one_sided_wall_does_not_line_up():
+    """z_max を r = 20 で分けない: 対のない節点が開口に残る（解析解から −5%）."""
+    doc, lines = _polygon_doc([(0, 0), (35, 0), (35, 40), (5, 40), (5, 20), (0, 20)])
+    assert _codes(doc)["tw_end_mismatch"].level == "warning"
+
+
+def test_tm0_warns_when_a_wall_partly_overlaps_the_other_plane():
+    """z_min は r < 30、z_max の壁は r > 20: 重なる 20 < r < 30 は周期条件で上書きされる（基準から +16%）."""
+    doc, lines = _polygon_doc([(0, 0), (35, 0), (35, 20), (35, 40), (1, 40), (1, 30), (0, 30)])
+    assert _codes(doc)["tw_end_mismatch"].level == "warning"
+
+
+def test_end_planes_split_at_different_points_are_reported():
+    """両端とも 0..40 で分ける位置だけ違う: メッシュの節点がそろわないことがある（TM0 は lc によって −2.9%）."""
+    points = [(0, 0), (35, 0), (35, 10), (35, 40), (0, 40), (0, 25)]
+    for analysis in ("tm0", "hom"):
+        doc, lines = _polygon_doc(points, analysis=analysis)
+        for line in (lines[1], lines[2], lines[4], lines[5]):
+            doc.boundaries[line] = "None"
+        issues = _codes(doc)
+        assert issues["tw_end_split"].level == "warning" and "tw_end_mismatch" not in issues
+
+
+def test_cell_without_straight_end_planes_is_reported():
+    doc, lines = _polygon_doc([(0, 0), (30, 0), (15, 40)], analysis="tm0")
+    assert _codes(doc)["tw_end_missing"].level == "warning"
+    doc.analysis.type = "hom"
+    assert _codes(doc)["tw_end_missing"].level == "error"
+
+
+@pytest.mark.parametrize("units, scale", [("mm", 1.0), ("m", 1e-3)])
+@pytest.mark.parametrize("analysis, ok_shift, bad_shift", [("hom", 5e-3, 1e-1), ("tm0", 1e-6, 1e-4)])
+def test_end_plane_tolerance_follows_the_core_and_is_physical(units, scale, analysis, ok_shift, bad_shift):
+    """コアが解けるずれでは出さない（HOM は 1e-2 mm、TM0 は 1e-5 mm まで）. どの単位でも同じ."""
+    for shift, reported in ((ok_shift, False), (bad_shift, True)):
+        points = [(0, 0), (35 * scale, 0), (35 * scale, (40 + shift) * scale), (0, 40 * scale)]
+        doc, lines = _polygon_doc(points, analysis=analysis, units=units)
+        doc.boundaries[lines[1]] = "None"
+        doc.boundaries[lines[3]] = "None"
+        assert ("tw_end_mismatch" in _codes(doc)) == reported, (units, shift)
+
+
+@pytest.mark.parametrize("analysis, ok", [("hom", True), ("tm0", False)])
+def test_end_plane_nearly_straight(analysis, ok):
+    """端面の z の許容もコアに合わせる（HOM は 1e-4 mm の傾きを解ける. TM0 は崩れるので警告を残す）."""
+    doc, lines = _polygon_doc([(0, 0), (30, 0), (30.0001, 40), (0, 40)], analysis=analysis)
+    assert ("tw_end_missing" not in _codes(doc)) == ok
+
+
+def test_analysis_only_errors_do_not_stop_export_or_meshing():
+    """HOM + 進行波の端面エラーは解析の設定が原因なので、形状の書き出しとメッシュ生成は止めない."""
+    doc, _ = _one_sided("hom")
+    assert any(i.level == "error" for i in check_geometry(doc))
+    assert to_multi_region(doc).geom.points
+
+
+def test_pec_on_an_interface_is_said_not_to_be_a_wall_for_tm0():
+    doc = create_empty_document("i")
+    a, _ = add_rectangle(doc.sketch, (0, 0), (15, 40))
+    b, _ = add_rectangle(doc.sketch, (15, 0), (30, 40), tolerance=1e-6)
+    doc.boundaries[a[1]] = "PEC"
+    doc.analysis.type = "tm0"
+    assert "壁になりません" in _codes(doc)["interface_wall_bc"].message
+    doc.analysis.type = "hom"
+    assert "壁になりません" not in _codes(doc)["interface_wall_bc"].message
+    doc.boundaries[a[1]] = "M-short"
+    assert "効きません" in _codes(doc)["interface_wall_bc"].message
+    doc.analysis.type = "tm0"
+    assert "H_φ = 0 の壁になります" in _codes(doc)["interface_wall_bc"].message

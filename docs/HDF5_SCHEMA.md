@@ -8,7 +8,7 @@ ver2 で TM0 と HOM の出力ファイル構造を統一する。ver2.1 で誘�
 
 | パス | 型 | 内容 |
 |---|---|---|
-| `/` (attrs) | — | `schema_version="2.2"`, `solver_type` (`"tm0"` or `"hom"`), `axicavity_fem_version` |
+| `/` (attrs) | — | `schema_version="2.2"`, `solver_type` (`"tm0"` or `"hom"`), `axicavity_fem_version`（solve を実行した版。post では更新されない） |
 | `/mesh/` | group | メッシュデータ |
 | `/materials/` | group | 領域別材料（ver2.1、誘電体メッシュのみ） |
 | `/parameters/` | group | CLI 引数 + 物理規約定数（ver2.3: `--target-freq` 指定時のみ attr `target_freq_GHz` が増える） |
@@ -25,8 +25,9 @@ ver2 で TM0 と HOM の出力ファイル構造を統一する。ver2.1 で誘�
 | `edge_map_keys` | (Ned, 2) int32 | エッジマップキー |
 | `edge_map_values` | (Ned,) int32 | エッジマップ値 |
 | `physical_groups/<name>` | (n,) int32 | 各物理グループのノードインデックス |
-| `eps_r_per_element` | (Ne,) float64 | **ver2.1**: 要素ごと比誘電率。誘電体メッシュのみ存在（真空は省略）。H→E 換算で E を ÷ε_r するために使う |
-| `tan_delta_per_element` | (Ne,) float64 | **ver2.3**: 要素ごと誘電正接 tanδ。損失誘電体メッシュのみ存在（無ければ無損失扱い）。post の Q_diel 計算に使う |
+| `physical_edges/<name>` | (m, 2) int | **3.0.1**: 1D の物理グループの線要素（角の節点の対）。1 次要素の壁の判定に使う。無ければ古いファイルで、1 次要素の `post` は領域の外周の辺だけを壁に数えて警告する |
+| `eps_r_per_element` | (Ne,) float64 | **ver2.1**: 要素ごと比誘電率。材料の表があるときに存在（真空でも書かれる）。H→E 換算で E を ÷ε_r するために使う |
+| `tan_delta_per_element` | (Ne,) float64 | **ver2.3**: 要素ごと誘電正接 tanδ。材料の表があるときに存在（無ければ無損失扱い）。post の Q_diel 計算に使う |
 | (attrs) | — | `num_nodes`, `num_edges`, `elem_order` |
 
 ## /materials/ （ver2.1、任意）
@@ -68,23 +69,37 @@ HOM の場再構成・ポストプロセスは、読み戻したフラット配�
 
 （attrs）`theta_rad`, `theta_deg`, `eigenvalue_k2`, `frequency_GHz`, `mode_type="traveling"`
 
+固有ベクトルは solve の値のまま保存する（post で規格化しない）。全体位相 e^{jφ} は不定で、同じメッシュでも解き直すと変わる。
+
 ## /post_process/n{N}/{standing|traveling}/.../mode_{K}/
 
-post コマンド実行後に追加。
+post コマンド実行後に追加（再実行すると `/post_process` を作り直す。固有ベクトルは変更しない）。TM0 の `U_stored`・`P_loss`・`P_diel`・`P_flow_zmin`・`V_eff`・`V_acc` は max_z |E_z(r=0)| = 1 V/m（E_z は複素振幅）に規格化した値。
+
+> 3.0.0 以前の post が書いた次の値は誤り（CHANGELOG）。スキーマは同じなので、solve し直さなくても post を再実行すれば正しい値に置き換わる。
+> ただし周波数と固有ベクトルも誤りの結果は solve し直す: HOM の進行波の n≥1 で周期面に達する壁が外半径より内側にあるセル（アイリス付き、同軸）や外壁が M-short のセル、HOM の進行波で z 方向に領域を分けたセルと約 40 µm より細かいメッシュ、HOM で 90° より小さい角や要素 1 層の隙間がある形状と軸の途中に接する壁（USER_MANUAL §13）。
+> - 進行波 TM0 の `U_stored`・`P_loss`・`P_diel`・`P_flow_zmin`・`V_eff`・`V_acc`・`R_over_Q`（E_z の実部で計算していた）
+> - 軸に誘電体がある TM0 の同じ値、定在波を含む（軸上 E_z を ε_r で割っていなかった）
+> - HOM の定在波の `U_stored`・`Q_wall`・`P_diel`（n=0 を含めて 2 倍）と `Q`（n=0 で tanδ=0 なら 2 倍、tanδ>0 ではそれより小さい差）
+> - HOM の n≥1 の `P_loss`・`Q`・`Q_wall`・`attenuation`（壁損失の curl の余分な j）
+> - HOM の進行波の n≥1 の `P_flow_zmin`・`group_velocity`・`attenuation`（P_flow の第 2 項が実部だった）
+> - TM0 の 1 次要素で 90° より小さい角や要素 1 層の隙間がある形状の `P_loss`・`Q`・`Q_wall`・`attenuation`（内部の辺を壁損失に数えていた）
 
 | attrs | 説明 |
 |---|---|
 | `Q` | 品質係数（**ver2.3 以降は全損失込みの合計 Q**。tanδ=0 なら従来値と同一） |
 | `Q_wall` | 壁損失のみの Q = ωU/P_loss（ver2.3、従来の `Q` に相当） |
 | `Q_diel` | 誘電体損失のみの Q（ver2.3。0 = 無損失） |
-| `R_over_Q` | R/Q [Ω] |
-| `V_eff` | 実効電圧 [V] |
+| `frequency_GHz` | 共振周波数 [GHz] |
+| `R_over_Q` | R/Q [Ω]（TM0 のみ） |
+| `V_eff` | 実効電圧 [V]（TM0 のみ） |
+| `V_acc` | 走行時間因子を含まない電圧 [V]（TM0 のみ） |
 | `U_stored` | 蓄積エネルギー [J] |
 | `P_loss` | 壁面損失 [W] |
 | `P_diel` | 誘電体損失 [W]（ver2.3） |
 | `P_flow_zmin` | z=z_min 断面ポインティングフラックス [W] |
-| `group_velocity` | 群速度 [m/s]（進行波のみ） |
-| `attenuation` | 減衰定数 [1/m]（進行波のみ） |
+| `group_velocity` | 群速度 [m/s]（定在波では 0） |
+| `attenuation` | 減衰定数 [1/m]（定在波では 0） |
+| `v_phase_c` | 位相速度 / c（HOM のみ。定在波では 0） |
 
 ## v1 (ver1) ファイルからの読み込み
 

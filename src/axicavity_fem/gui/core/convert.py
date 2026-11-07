@@ -39,6 +39,8 @@ from .sketch.planarize import count_conflicts
 
 # コアの軸検出しきい値（shared.mesh_loader / fem_tm0.boundary: r < 1e-6 m）を文書単位に換算して使う
 AXIS_TOL_M = 1e-6
+END_PLANE_TOL_M = {"hom": 1e-5, "tm0": 1e-8}     # 端面を比べる許容（コアの周期面の許容と同じ）
+ANALYSIS_ONLY_ERRORS = {"tw_end_missing", "tw_end_mismatch"}   # 解析の設定が原因で、形状の書き出しやメッシュ生成は止めない
 UNIT_TO_M = {"m": 1.0, "cm": 1e-2, "mm": 1e-3, "inch": 0.0254}
 # BC 分類と衝突する材料タグ（大文字小文字を無視）
 _RESERVED_TAGS = {"pec", "e-short", "e_short", "eshort", "m-short", "m_short", "mshort", "dirichlet", "none"}
@@ -313,6 +315,97 @@ def _arc_min_r(sketch, arc: SketchArc) -> float:
                g.point_at_angle(p.center, p.radius, p.startAngle + p.sweep)[1])
 
 
+def _interface_note(solver: str, bc: str) -> str:
+    """内部の界面の境界条件が解析の種類でどう効くか（TM0 の DOF は H_φ、HOM の DOF は E）."""
+    if solver == "tm0":
+        return ("。TM0 では H_φ = 0 の壁になります（HOM では効きません）" if bc == "M-short"
+                else "。TM0 は H_φ が線を通り抜けるので、内部の線は壁になりません")
+    return "。HOM では効きません（自然境界なので線が無いのと同じです）" if bc == "M-short" else ""
+
+
+def _merged_spans(lines: list[tuple[float, float, str, Id]], tol: float) -> list[tuple[float, float]]:
+    """端面の線が覆う r の範囲（つながった区間にまとめる）."""
+    spans: list[tuple[float, float]] = []
+    for lo, hi, _bc, _id in sorted(lines):
+        if spans and lo <= spans[-1][1] + tol:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], hi))
+        else:
+            spans.append((lo, hi))
+    return spans
+
+
+def _overlap(a: tuple[float, float], spans: list[tuple[float, float]]) -> float:
+    return sum(max(0.0, min(a[1], b[1]) - max(a[0], b[0])) for b in spans)
+
+
+def _breakpoints_inside(lines, spans, tol) -> list[float]:
+    """線の端の r のうち、``spans`` の中にあるもの（tol 以内の値は 1 つにまとめて並べる）."""
+    values = sorted(v for lo, hi, _b, _i in lines for v in (lo, hi) if any(s[0] - tol <= v <= s[1] + tol for s in spans))
+    merged: list[float] = []
+    for v in values:
+        if not merged or v - merged[-1] > tol:
+            merged.append(v)
+    return merged
+
+
+def _same_points(a: list[float], b: list[float], tol: float) -> bool:
+    return len(a) == len(b) and all(abs(x - y) <= tol for x, y in zip(a, b))
+
+
+def _end_plane_issues(low: list[tuple[float, float, str, Id]], high: list[tuple[float, float, str, Id]], solver: str,
+                      tol: float) -> list[Issue]:
+    """進行波の端面の検証: 端面が無い、周期面の中の部分的な壁、両端の範囲の違い、分割の位置の違い."""
+    issues = []
+    if not low or not high:
+        issues.append(Issue("error" if solver == "hom" else "warning", "tw_end_missing",
+                            "進行波解析ですが、z_min か z_max に直線の端面がありません。周期条件が掛からないので、TM0 の結果は位相によらず、"
+                            "HOM は解けません。"))
+        return issues
+    low_spans, high_spans = _merged_spans(low, tol), _merged_spans(high, tol)
+
+    ignored: list[Id] = []
+    for lines, other in ((low, high_spans), (high, low_spans)):
+        labels = {bc for _lo, _hi, bc, _id in lines}
+        if len(labels) < 2:
+            continue                      # 全面が同じラベルなら周期面の普通の指定（PEC は上の警告）
+        # E-short は PEC と並ぶと開口の指定（マニュアルが勧める設定）、M-short は None と並ぶと磁気壁の指定
+        wall = next((bc for bc in ("PEC", "E-short", "M-short") if bc in labels), None)
+        for lo, hi, bc, curve_id in lines:
+            if bc == wall and _overlap((lo, hi), other) > tol:
+                ignored.append(curve_id)  # 反対側の端面と対になる範囲の壁は周期条件で上書きされる
+    if ignored:
+        issues.append(Issue("warning", "tw_end_partial_wall",
+                            "z_min / z_max の端面の一部だけが PEC / E-short / M-short です。この部分は周期境界として対にされ、"
+                            "壁として計算に入りません。"
+                            "壁に厚みを持たせるか、壁が端面に来ないようにセルの切り方を変えてください", ignored))
+
+    same_range = len(low_spans) == len(high_spans) and all(
+        abs(a[0] - b[0]) <= tol and abs(a[1] - b[1]) <= tol for a, b in zip(low_spans, high_spans))
+    ids = [i for _lo, _hi, _bc, i in low + high]
+    if not same_range:
+        if solver == "hom":
+            issues.append(Issue("error", "tw_end_mismatch",
+                                "進行波の HOM は z_min と z_max の端面が同じ r の範囲である必要があります"
+                                "（片方の端面だけに壁があるときは、壁が端面に来ないようにセルの切り方を変えてください）", ids))
+            return issues
+        # TM0: 対のない線がそっくり壁で、重なる範囲の分割が同じなら対のない節点は壁になるので正しい
+        clean = all(
+            (_overlap((lo, hi), other) <= tol and bc in ("PEC", "E-short"))
+            or _overlap((lo, hi), other) >= hi - lo - tol
+            for lines, other in ((low, high_spans), (high, low_spans)) for lo, hi, bc, _i in lines)
+        shared = [(max(a[0], b[0]), min(a[1], b[1])) for a in low_spans for b in high_spans
+                  if min(a[1], b[1]) > max(a[0], b[0])]
+        if not clean or not _same_points(_breakpoints_inside(low, shared, tol), _breakpoints_inside(high, shared, tol), tol):
+            issues.append(Issue("warning", "tw_end_mismatch",
+                                "z_min と z_max の端面の r の範囲が違い、対にならない節点が壁以外に残ります。周波数が正しくありません。"
+                                "両方の端面を同じ r の位置で分けるか、セルの切り方を変えてください", ids))
+    elif not _same_points(_breakpoints_inside(low, low_spans, tol), _breakpoints_inside(high, high_spans, tol), tol):
+        issues.append(Issue("warning", "tw_end_split",
+                            "z_min と z_max の端面を分ける r の位置が違います。メッシュの節点がそろわず、"
+                            "TM0 は周波数が正しくなくなり、HOM は止まることがあります。両方を同じ位置で分けてください", ids))
+    return issues
+
+
 def check_geometry(doc: AxiDocument) -> list[Issue]:
     """書き出し・メッシュ生成・解析の前の検証。error があれば止め、warning は確認ダイアログに出す.
 
@@ -330,7 +423,7 @@ def check_geometry(doc: AxiDocument) -> list[Issue]:
     except ExpressionError as exc:
         lc = 0.0
         issues.append(Issue("error", "mesh_size", f"メッシュサイズの式 '{doc.mesh.sizeExpr}': {exc}"))
-    if lc <= 0:
+    if not math.isfinite(lc) or lc <= 0:
         issues.append(Issue("error", "mesh_size", "メッシュサイズ lc は正の値にしてください"))
 
     negative = [e.id for e in sketch.entities if isinstance(e, SketchPoint) and e.y < -tol
@@ -359,14 +452,14 @@ def check_geometry(doc: AxiDocument) -> list[Issue]:
             issues.append(Issue("error", "arc_crosses_axis", "円弧が軸 r=0 を横切っています", [e.id]))
 
     # 境界条件
-    on_axis: list[Id] = []
     for curve_id in counts:
         e = get_entity(sketch, curve_id)
         bc, source = effective_bc(doc, curve_id, counts=counts)
         auto, auto_source = auto_bc(doc, curve_id, counts=counts)
         if source == "explicit" and auto_source == "interface" and bc != BC_NONE:
+            note = _interface_note(doc.analysis.type, bc)
             issues.append(Issue("warning", "interface_wall_bc",
-                                f"内部の界面に境界条件 {bc} が指定されています（通常は None）", [curve_id]))
+                                f"内部の界面に境界条件 {bc} が指定されています（通常は None）{note}", [curve_id]))
         if source == "explicit" and auto_source == "axis" and bc != BC_NONE:
             issues.append(Issue("warning", "axis_wall_bc",
                                 f"軸 r=0 上の線に境界条件 {bc} が指定されています（軸はコアが自動判定します）", [curve_id]))
@@ -374,29 +467,31 @@ def check_geometry(doc: AxiDocument) -> list[Issue]:
             issues.append(Issue("warning", "outer_none",
                                 "外周の曲線に None が指定されています（境界グループが付かず、TM0 では自然境界になります）",
                                 [curve_id]))
-        if auto_source == "axis":
-            on_axis.append(curve_id)
     # 進行波: z_min / z_max の端面が PEC だと壁損失に数えられる
     if doc.analysis.wave == "traveling":
         verts = [point_pos(sketch, pid) for e in sketch.entities if isinstance(e, (SketchLine, SketchArc))
                  and e.id in counts for pid in ((e.p1, e.p2) if isinstance(e, SketchLine) else (e.start, e.end))]
         if verts:
             zmin, zmax = min(v[0] for v in verts), max(v[0] for v in verts)
-            span = max(zmax - zmin, 1.0)
+            end_tol = END_PLANE_TOL_M.get(doc.analysis.type, 1e-8) / UNIT_TO_M.get(doc.meta.units, 1e-3)
             ends: list[Id] = []
+            planes: dict[float, list[tuple[float, float, str, Id]]] = {zmin: [], zmax: []}
             for curve_id in counts:
                 e = get_entity(sketch, curve_id)
                 if not isinstance(e, SketchLine):
                     continue
                 a, b = point_pos(sketch, e.p1), point_pos(sketch, e.p2)
                 for z_end in (zmin, zmax):
-                    if abs(a[0] - z_end) <= 1e-9 * span and abs(b[0] - z_end) <= 1e-9 * span \
-                            and effective_bc(doc, curve_id, counts=counts)[0] == "PEC":
-                        ends.append(curve_id)
+                    if abs(a[0] - z_end) <= end_tol and abs(b[0] - z_end) <= end_tol:
+                        bc = effective_bc(doc, curve_id, counts=counts)[0]
+                        planes[z_end].append((min(a[1], b[1]), max(a[1], b[1]), bc, curve_id))
+                        if bc == "PEC":
+                            ends.append(curve_id)
             if ends:
                 issues.append(Issue("warning", "tw_end_pec",
                                     "進行波解析ですが z_min / z_max の端面が PEC です（周期境界として対にされますが、"
                                     "壁損失に数えられます。E-short / M-short / None を推奨）", ends))
+            issues.extend(_end_plane_issues(planes[zmin], planes[zmax], doc.analysis.type, end_tol))
     # 材料
     resolved = resolve_regions(doc, profiles, params, errors := [])
     for msg in errors:
@@ -409,9 +504,6 @@ def check_geometry(doc: AxiDocument) -> list[Issue]:
             issues.append(Issue("error", "eps_r", f"領域 {r.name} の ε_r は正の値にしてください"))
         if r.tan_delta < 0:
             issues.append(Issue("error", "tan_delta", f"領域 {r.name} の tanδ は 0 以上にしてください"))
-        if r.eps_r != 1.0 and any(seg.entityId in on_axis for seg in r.profile.outer):
-            issues.append(Issue("warning", "axis_region_eps",
-                                f"軸に接する領域 {r.name} の ε_r ≠ 1 です（コアの既知制約: V_eff・R/Q が不正確になります）"))
     return issues
 
 
@@ -505,7 +597,7 @@ def _circle_segments(sketch, circle: SketchCircle, pool: _PointPool, next_id, bc
 def to_multi_region(doc: AxiDocument, strict: bool = True) -> ConvertResult:
     """ドキュメントを ``MultiRegionGeometry`` にする。error があれば :class:`ConvertError`."""
     issues = check_geometry(doc)
-    if strict and any(i.level == "error" for i in issues):
+    if strict and any(i.level == "error" and i.code not in ANALYSIS_ONLY_ERRORS for i in issues):
         raise ConvertError(issues)
     sketch = doc.sketch
     params = document_params(doc)

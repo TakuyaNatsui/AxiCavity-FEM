@@ -37,7 +37,7 @@ import time
 import traceback
 from pathlib import Path
 
-VERSION = "3.0.0"
+VERSION = "3.0.1"
 HERE = Path(__file__).resolve().parent
 
 # 配布物: このフォルダの lib/（コアの 2 モジュールのコピー）。開発環境: リポジトリの src/

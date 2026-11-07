@@ -15,7 +15,7 @@ from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import eig
-from scipy.sparse.linalg import LinearOperator, eigs, eigsh, lobpcg
+from scipy.sparse.linalg import LinearOperator, eigs, eigsh, lobpcg, splu
 
 # オプション依存: Intel MKL PARDISO（pip install pypardiso）。
 # あれば実対称 shift-invert（eigsh）の (K-σM) 分解をマルチコアの
@@ -77,6 +77,23 @@ def _select_clean(vals, vecs, res, k, sigma, which):
         vals_c, vecs_c = vals_c[pick], vecs_c[:, pick]
     order = np.argsort(np.real(vals_c))
     return vals_c[order], vecs_c[:, order]
+
+
+def count_eigenvalues_below(K, M, shift):
+    """``K v = λ M v`` の ``shift`` より小さい固有値の数を返す（数えられなければ None）.
+
+    K − shift·M を対称な順序で LU 分解すると U の対角は対称分解の D なので、
+    負の対角の数が負の固有値の数になる（Sylvester の慣性法則）。固有値は解かない。
+    """
+    A = (K - shift * M).tocsc()
+    try:
+        lu = splu(A, permc_spec="MMD_AT_PLUS_A", diag_pivot_thresh=0.0,
+                  options={"SymmetricMode": True})
+    except RuntimeError:           # 分解できない（shift が固有値に一致するなど）
+        return None
+    if not np.array_equal(lu.perm_r, lu.perm_c):
+        return None
+    return int(np.sum(np.real(lu.U.diagonal()) < 0.0))
 
 
 def solve_eigenmodes(K, M, num_eigenmodes=5):
@@ -169,7 +186,8 @@ def solve_eigenmodes_eigsh(K, M, num_eigenmodes=5, sigma=None,
     fallback = None
     fallback_res = np.inf
     for attempt in range(_SOLVE_ATTEMPTS):
-        k_try = min(num_eigenmodes + _K_EXTRA * attempt, N - 1)
+        # 複素エルミートの eigsh は内部で eigs を使うので k ≤ N − 2
+        k_try = min(num_eigenmodes + _K_EXTRA * attempt, N - (2 if np.iscomplexobj(K.data) else 1))
         vals, vecs = _eigsh_once(K, M, k_try, sigma, which, tol,
                                  use_pardiso, pardiso_min_dof)
         res = _relative_residuals(K, M, vals, vecs)

@@ -7,6 +7,7 @@ from axicavity_fem.gui.jobs.commands import (
     post_argv,
     report_argv,
     solve_argv,
+    solver_type_of,
     validate_analysis,
 )
 
@@ -43,6 +44,12 @@ def test_post_report_and_build_commands():
     doc.report.showMesh = False
     doc.report.dpi = 96
     assert report_argv(doc, "x.h5")[7:] == ["--animate", "--time-phase", "45", "--no-mesh", "--dpi", "96"]
+
+    # 既存の結果には、解析設定（ここでは hom）ではなく結果の種類を渡す
+    assert post_argv(doc, "x.h5", solver_type="tm0")[:3] == ["post", "--type", "tm0"]
+    assert post_argv(doc, "x.h5", solver_type="tm0")[-2:] == ["--beta", "1"]
+    assert report_argv(doc, "x.h5", solver_type="tm0")[:3] == ["report", "--type", "tm0"]
+    assert solver_type_of("tm0-tw") == "tm0" and solver_type_of("hom-sw") == "hom"
 
     doc = create_empty_document("c")
     cmds = build_commands(doc)

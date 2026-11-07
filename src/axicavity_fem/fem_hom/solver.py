@@ -19,6 +19,7 @@ import numpy as np
 
 from ..shared.constants import C0, k2_from_freq_ghz
 from ..shared.eigensolver import solve_eigenmodes_eigsh
+from ..shared.boundary_groups import M_SHORT, canonical_bc_name
 from ..shared.material_resolver import build_eps_r_per_element
 from ..shared.mesh_loader import HOMMeshData, load_mesh_hom
 from .assembly import assemble_global_matrices, matrix_size_hom
@@ -29,6 +30,7 @@ from .boundary import (
     create_complex_transformation_matrix_2nd,
     create_transformation_matrix,
     find_periodic_boundary_pairs,
+    periodic_tolerance,
     get_pec_dof_indices_1st,
     get_pec_dof_indices_2nd,
     reconstruct_eigenvector_transformation,
@@ -106,6 +108,16 @@ def _to_ghz(eigenvalue) -> float:
     return (C0 / (2 * np.pi)) * np.sqrt(np.abs(eigenvalue)) / 1e9
 
 
+def _magnetic_edges(mesh: HOMMeshData) -> list[int]:
+    """M-short の線要素の辺の番号（線要素の情報が無ければ空）."""
+    out = []
+    for name, pairs in (mesh.physical_edges or {}).items():
+        if canonical_bc_name(name) == M_SHORT:
+            out.extend(mesh.edge_index_map[(int(min(a, b)), int(max(a, b)))] for a, b in pairs
+                       if (int(min(a, b)), int(max(a, b))) in mesh.edge_index_map)
+    return out
+
+
 def _num_to_solve(num_modes, reduced_size):
     k = num_modes * 3
     if k >= reduced_size:
@@ -149,8 +161,9 @@ def _resolve_eps_r(mesh: HOMMeshData, material_table):
     if eps_r is not None and np.any(np.abs(eps_r - 1.0) > 1e-12):
         warnings.warn(
             "[ver2.1 HOM] 誘電体 (eps_r != 1) が指定されました。"
-            "HOM は E 場定式化のため M に eps_r を乗じます（共振周波数は正確）。"
-            "ただし後処理 (U, P_loss, Q 等) は真空前提のため不正確になる場合があります。",
+            "HOM は E 場定式化のため M に eps_r を乗じます（共振周波数と後処理は eps_r を含めて計算します）。"
+            "シフト値は eps_r に追従しないので、誘電体が多いと最低次モードを見逃すことがあります"
+            "（そのときは予測周波数 --target-freq を指定してください）。",
             UserWarning, stacklevel=2,
         )
     return eps_r
@@ -237,20 +250,27 @@ def solve_hom_traveling(mesh: HOMMeshData, num_modes: int = 10,
     periodic = {}
     for theta_deg in phase_shifts:
         theta_rad = np.deg2rad(theta_deg)
-        edge_pairs, node_pairs, _, _ = find_periodic_boundary_pairs(
-            mesh.vertices, mesh.simplices, mesh.edge_index_map,
-            mesh.num_edges, mesh.n, tol=1e-5)
+        edge_pairs, node_pairs, _, _, wall_images = find_periodic_boundary_pairs(
+            mesh.vertices, mesh.edge_index_map, mesh.n, mesh.boundary_edge_indices,
+            tol=periodic_tolerance(mesh.vertices, mesh.edge_index_map), simplices=mesh.simplices,
+            magnetic_edge_indices=_magnetic_edges(mesh))
+        if not edge_pairs and theta_deg == phase_shifts[0]:
+            warnings.warn(
+                "[HOM] z_min と z_max の端面が 1 つも対になりません。周期条件が掛からないので、結果は位相によりません"
+                "（端面が z 軸に垂直な直線か確かめてください）。",
+                UserWarning, stacklevel=2)
+        fixed_nodes = list(mesh.boundary_vertices_indices) + wall_images
 
         if mesh.element_order == 2:
             T, _ = create_complex_transformation_matrix_2nd(
                 num_nodes, mesh.num_edges, num_elements, mesh.n, theta_rad,
                 edge_pairs, node_pairs,
-                mesh.boundary_edge_indices, mesh.boundary_vertices_indices)
+                mesh.boundary_edge_indices, fixed_nodes)
         else:
             T, _ = create_complex_transformation_matrix(
                 num_nodes, mesh.num_edges, mesh.n, theta_rad,
                 edge_pairs, node_pairs,
-                mesh.boundary_edge_indices, mesh.boundary_vertices_indices)
+                mesh.boundary_edge_indices, fixed_nodes)
 
         K_reduced, M_reduced = apply_bc_transformation_hermitian(
             K_global, M_global, T)

@@ -13,12 +13,14 @@ eps_r=1.0 (真空) を返す。
 
 from __future__ import annotations
 
+import warnings
 from typing import Mapping
 
 import numpy as np
 
+from .boundary_groups import CANONICAL_NAMES, canonical_bc_name
 from .mesh_loader import MeshData
-from .multi_region_model import MultiRegionGeometry
+from .multi_region_model import VACUUM_TAG, MultiRegionGeometry
 
 
 def build_material_table_from_geometry(
@@ -114,6 +116,9 @@ def _resolve_per_region(
     out: dict[int, float] = {}
     for rid, name in region_names.items():
         entry = table.get(name)
+        if (entry is None and table and key == "eps_r" and name not in (VACUUM_TAG, "Domain")
+                and not name.startswith("PhysicalGroup_") and canonical_bc_name(name) not in CANONICAL_NAMES):
+            warnings.warn(f"[Material] 材料タグ '{name}' が材料の表にありません。真空として計算します。", UserWarning, stacklevel=2)
         if entry is not None and key in entry:
             out[int(rid)] = float(entry[key])
         else:
@@ -132,61 +137,3 @@ def _broadcast_to_elements(
         if rid_i in value_per_region:
             out[i] = value_per_region[rid_i]
     return out
-
-
-# ---------------------------------------------------------------------------
-# ver2.1 制約用 sanity check
-# ---------------------------------------------------------------------------
-def check_port_and_axis_are_vacuum(
-    mesh: MeshData,
-    eps_r_per_element: np.ndarray | None,
-    *,
-    z_port: float | None = None,
-    tol: float = 1e-12,
-) -> list[str]:
-    """軸 r=0 上、および任意のポート z=z_port 上の要素が eps_r=1 であるかを確認する。
-
-    後処理 (蓄積エネルギー、P_flow、軸上 Ez) は真空前提のため、ここに ε_r ≠ 1
-    の要素があると派生量が不正確になる。リストで違反メッセージを返す
-    (空リストなら OK)。呼び出し側は warning か例外として扱う。
-
-    Args:
-        mesh: メッシュ。
-        eps_r_per_element: 要素ごと ε_r 配列 (``build_eps_r_per_element`` の戻り値)。
-            ``None`` なら全要素 vacuum とみなして即座に空リストを返す。
-        z_port: 確認したいポート z 位置 [m]。``None`` なら z_min を使う。
-        tol: ε_r が 1.0 から外れる許容差。
-
-    Returns:
-        違反説明文のリスト。
-    """
-    if eps_r_per_element is None:
-        return []
-    messages: list[str] = []
-    nodes = mesh.nodes
-    elements = mesh.elements
-    # 要素の重心 (z, r)
-    tri = nodes[elements[:, :3]]
-    centroids = tri.mean(axis=1)
-
-    # 軸 r ≈ 0 を「コーナーいずれかが r=0 近傍」の要素として定義
-    is_on_axis = np.any(tri[:, :, 1] < 1e-10, axis=1)
-    bad_axis = np.where(is_on_axis & (np.abs(eps_r_per_element - 1.0) > tol))[0]
-    if len(bad_axis) > 0:
-        messages.append(
-            f"axis r=0 上の {len(bad_axis)} 要素が eps_r != 1 (例: 要素 {bad_axis[:3].tolist()}). "
-            "軸上 E_z 計算は真空前提のため、軸上加速電圧 V/V_eff/R/Q は不正確。"
-        )
-
-    # ポート断面 z ≈ z_port
-    if z_port is None:
-        z_port = float(np.min(nodes[:, 0]))
-    is_on_port = np.any(np.abs(tri[:, :, 0] - z_port) < 1e-10, axis=1)
-    bad_port = np.where(is_on_port & (np.abs(eps_r_per_element - 1.0) > tol))[0]
-    if len(bad_port) > 0:
-        messages.append(
-            f"ポート断面 z={z_port} 上の {len(bad_port)} 要素が eps_r != 1 "
-            f"(例: 要素 {bad_port[:3].tolist()}). P_flow / 群速度は不正確。"
-        )
-
-    return messages
