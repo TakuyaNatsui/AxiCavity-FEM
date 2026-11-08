@@ -10,10 +10,11 @@ parametric, sketch-based GUI, mesh generation, post-processing, 3-D field views 
 
 日本語版 README は [README.ja.md](README.ja.md) にあります。
 
-YouTube explanatory video (version 2): https://youtu.be/U27KQ3pV1wE (traveling-wave TM0 and HOM values
-such as R/Q and Q in the video predate the corrections in 3.0.1)
+YouTube videos (version 3, in Japanese):
+- Example calculation of a pillbox cavity: https://youtu.be/CES028XQrA8
+- Feature overview (S-band traveling wave): https://youtu.be/nNX6hxt9E4U
 
-![TM0 mode of a 5-cell accelerating structure](docs/images/tm0_accelerating_structure.png)
+![Traveling-wave TM0 mode of a 5-cell S-band accelerating structure](docs/images/sband_5cell_tw_tm0.gif)
 
 AxiCavity-FEM solves the Helmholtz equation on the (z, r) half-plane of a body of
 revolution and gives you the resonant frequencies, the field distributions, and the

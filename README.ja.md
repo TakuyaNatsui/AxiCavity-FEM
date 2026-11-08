@@ -10,9 +10,11 @@
 
 English README: [README.md](README.md)
 
-解説動画（バージョン 2）: https://youtu.be/U27KQ3pV1wE（動画に映る進行波 TM0 の R/Q や HOM の Q などの値は、3.0.1 の修正前のものです）
+解説動画（バージョン 3）:
+- ピルボックス空洞の計算例: https://youtu.be/CES028XQrA8
+- 機能紹介（S バンド進行波）: https://youtu.be/nNX6hxt9E4U
 
-![5 セル加速管の TM0 モード](docs/images/tm0_accelerating_structure.png)
+![S バンド 5 セル加速管の進行波 TM0 モード](docs/images/sband_5cell_tw_tm0.gif)
 
 AxiCavity-FEM は回転体の (z, r) 半平面でヘルムホルツ方程式を解き、共振周波数・場の分布と、設計で実際に使う
 工学量 — Q、R/Q、実効加速電圧、蓄積エネルギー、壁損失、パワーフロー、群速度、減衰定数 — を求めます。
